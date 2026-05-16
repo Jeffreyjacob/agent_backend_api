@@ -1,3 +1,37 @@
-node_modules
+# dependencies
+node_modules/
+
+# environment variables
 .env
-/dist
+.env.local
+.env.development
+.env.production
+
+# build output
+dist/
+build/
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+
+# coverage
+coverage/
+
+# optional
+tmp/
+temp/
