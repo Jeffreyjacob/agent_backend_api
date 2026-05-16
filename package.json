@@ -1,0 +1,67 @@
+{
+  "name": "agent_backend_api",
+  "version": "1.0.0",
+  "description": "A production-grade REST API for a real estate platform supporting  property listings, viewing bookings, and agent subscriptions.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jeffreyjacob/agent_backend_api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Jeffreyjacob/agent_backend_api/issues"
+  },
+  "homepage": "https://github.com/Jeffreyjacob/agent_backend_api#readme",
+  "dependencies": {
+    "@bull-board/api": "^7.1.5",
+    "@bull-board/express": "^7.1.5",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "bullmq": "^5.76.8",
+    "cloudinary": "^1.41.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
+    "joi": "^18.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^8.0.7",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "rate-limit-redis": "^5.0.0",
+    "stripe": "^20.3.1",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.8.0",
+    "@types/nodemailer": "^8.0.0",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@types/yamljs": "^0.2.34",
+    "concurrently": "^9.2.1",
+    "prisma": "^5.22.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^6.0.3"
+  }
+}
