@@ -1,4 +1,4 @@
-# RealNest API
+# RealEstate API
 
 A production-grade REST API for a real estate platform supporting 
 property listings, viewing bookings, and agent subscriptions.
