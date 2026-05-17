@@ -1,10 +1,5 @@
 import { Logger } from "pino";
-
-export interface ITokenPayload {
-  id: string;
-  email: string;
-  role: string;
-}
+import { ITokenPayload } from "../module/authentication/auth.interface";
 
 declare module "express-serve-static-core" {
   interface Request {

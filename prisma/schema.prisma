@@ -125,7 +125,7 @@ model User {
 
   // index
   @@index([resetToken,resetTokenExpiresAt])
-  @@index([emailOtp,emailVerifed,emailOtpExpiresAt])
+  @@index([email,emailOtp,emailVerifed,emailOtpExpiresAt])
   @@index([email,isActive])
 }
 
