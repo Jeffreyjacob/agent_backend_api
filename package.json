@@ -4,7 +4,11 @@
   "description": "A production-grade REST API for a real estate platform supporting  property listings, viewing bookings, and agent subscriptions.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist/server.js",
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn  src/server.ts",
+    "worker": "ts-node-dev --respawn src/worker.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run worker\""
   },
   "repository": {
     "type": "git",
