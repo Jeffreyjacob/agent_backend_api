@@ -54,11 +54,12 @@ export class AuthService {
     return await bcrypt.compare(candidatePassword, password);
   }
 
-  async registerBuyer(
+  private async registerUser(
     data: IBuyerRegistrationPayload,
+    role: Role,
   ): Promise<IAuthMessageResponse> {
-    const buyerAlreadyExist = await this.authRepo.exists({ email: data.email });
-    if (buyerAlreadyExist)
+    const userAlreadyExist = await this.authRepo.exists({ email: data.email });
+    if (userAlreadyExist)
       throw new ConflictError("user with email already exist");
 
     const otp = generateOtp();
@@ -74,7 +75,7 @@ export class AuthService {
       password: hashed,
       emailOtp: otp,
       emailOtpExpiresAt: expiresAt,
-      role: Role.BUYER,
+      role,
     });
 
     try {
@@ -93,42 +94,16 @@ export class AuthService {
     };
   }
 
+  async registerBuyer(
+    data: IBuyerRegistrationPayload,
+  ): Promise<IAuthMessageResponse> {
+    return this.registerUser(data, Role.BUYER);
+  }
+
   async registerAgent(
     data: IAgentRegisterPayload,
   ): Promise<IAuthMessageResponse> {
-    const checkIfAgentExist = await this.authRepo.exists({ email: data.email });
-    if (checkIfAgentExist) throw new ConflictError("email already exist ");
-
-    const otp = generateOtp();
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-
-    const hashed = await this.hashPassword(data.password);
-
-    const user = await this.authRepo.create({
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      password: hashed,
-      emailOtp: otp,
-      emailOtpExpiresAt: expiresAt,
-      role: Role.AGENT,
-    });
-
-    try {
-      const emailQueue = getEmailQueue();
-      await emailQueue.add("email", {
-        email: user.email,
-        subject: "Verify Email",
-        html: verifyEmailTemplate(otp, user.firstName),
-      });
-    } catch (error: any) {
-      logger.error({ err: error }, "unable to add email job to email queue");
-    }
-
-    return {
-      message: "user account has been created successfully!",
-    };
+    return this.registerUser(data, Role.AGENT);
   }
 
   async verifyEmail(data: IVerifyEmailPayload): Promise<IAuthMessageResponse> {
@@ -143,7 +118,7 @@ export class AuthService {
     await this.authRepo.update(
       { id: user.id },
       {
-        emailVerifed: false,
+        emailVerifed: true,
         emailOtpExpiresAt: null,
         emailOtp: null,
       },
@@ -304,7 +279,9 @@ export class AuthService {
   async resetPassword(
     data: IResetPasswordPayload,
   ): Promise<IAuthMessageResponse> {
-    const user = await this.authRepo.findByResetToken(data.resetToken);
+    const user = await this.authRepo.findByResetToken(
+      hashToken(data.resetToken),
+    );
 
     if (!user)
       throw new UnauthorizedError("Invalid reset token, Please try again");
