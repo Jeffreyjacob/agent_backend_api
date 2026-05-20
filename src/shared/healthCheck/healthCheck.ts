@@ -7,7 +7,7 @@ interface DependencyHealth {
   status: "healthy" | "unhealthy";
   latency: number;
   error?: string;
-  counts?: Record<string, number>[];
+  counts?: Record<string, any>[];
 }
 
 interface HealthResponse {
@@ -19,7 +19,7 @@ interface HealthResponse {
   dependancies: {
     database: DependencyHealth;
     redis: DependencyHealth;
-    queue: DependencyHealth & { counts?: Record<string, number>[] };
+    queue: DependencyHealth & { counts?: Record<string, any>[] };
   };
 }
 
@@ -59,7 +59,9 @@ export class HealthCheck {
     const start = Date.now();
     try {
       const queues = await Promise.all(
-        allQueues.map(async (queue) => await queue.getJobCounts()),
+        allQueues.map(async (queue) => ({
+          [queue.name]: await queue.getJobCounts(),
+        })),
       );
       return {
         status: "healthy",

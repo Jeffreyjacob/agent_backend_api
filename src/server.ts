@@ -15,7 +15,7 @@ async function startServer(): Promise<void> {
       logger.info(
         {
           pid: process.pid,
-          port: env.NODE_ENV,
+          port: env.PORT,
           env: env.NODE_ENV,
         },
         "Server is ready",
