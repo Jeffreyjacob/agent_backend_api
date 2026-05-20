@@ -2,10 +2,11 @@ import { Worker } from "bullmq";
 import { emailProcesser } from "../processer/email";
 import { redis } from "../../config/redis";
 import { logger } from "../../config/logger";
+import { bullmqConnections } from "../../config/bullConfig";
 
 export const createEmailWorker = (): Worker => {
   const worker = new Worker("emailQueue", emailProcesser, {
-    connection: redis,
+    connection: bullmqConnections,
     concurrency: 10,
   });
 

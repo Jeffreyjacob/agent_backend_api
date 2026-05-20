@@ -5,6 +5,7 @@ import {
   loginSchema,
   registerAgentSchema,
   registerBuyerSchema,
+  resendEmailOtpSchema,
   resetPasswordSchema,
   verifyEmailSchema,
 } from "./auth.validation";
@@ -38,6 +39,12 @@ router.post(
   "/verifyEmail",
   Validate(verifyEmailSchema, "body"),
   asyncHandler(authController.verifyEmail.bind(authController)),
+);
+
+router.post(
+  "/resendEmailOtp",
+  Validate(resendEmailOtpSchema, "body"),
+  authController.resendEmailOtp.bind(authController),
 );
 
 router.post(

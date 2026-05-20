@@ -14,6 +14,7 @@ import { HealthCheck } from "./shared/healthCheck/healthCheck";
 import { asyncHandler } from "./shared/utils/asyncHandler";
 import { bullboardRouter } from "./jobs/bullBoard";
 import authRoutes from "./module/authentication/auth.routes";
+import userRoutes from "./module/users/user.route";
 
 class App {
   public readonly express: Application;
@@ -79,6 +80,7 @@ class App {
 
     this.express.use("/admin/queues", bullboardRouter);
     this.express.use("/api/v1/auth", authRoutes);
+    this.express.use("/api/v1/user", userRoutes);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);

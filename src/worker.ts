@@ -2,12 +2,13 @@ import { prisma } from "./config/database";
 import { logger } from "./config/logger";
 import { disconnectRedis } from "./config/redis";
 import { getEmailQueue } from "./jobs/queues/email";
+import { createEmailWorker } from "./jobs/workers/email";
 
 const startWorker = async () => {
   try {
     logger.info("starting worker...");
     await prisma.$connect();
-    const emailWorker = getEmailQueue();
+    const emailWorker = createEmailWorker();
 
     const gracefulShutdown = async (signal: string) => {
       logger.info({ signal }, "start graceful shut down ");

@@ -74,6 +74,7 @@ export class AuthService {
       email: data.email,
       password: hashed,
       emailOtp: otp,
+      ...(role === Role.AGENT && { defaultViewingDuration: 30 }),
       emailOtpExpiresAt: expiresAt,
       role,
     });
