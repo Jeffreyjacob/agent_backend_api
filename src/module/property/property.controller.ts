@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { PropertyService } from "./property.service";
 import { ResponseHelper } from "../../shared/utils/apiResponse";
 import { BadRequestError } from "../../shared/error";
+import { Role } from "@prisma/client";
 
 export class PropertyController {
   constructor(private readonly service: PropertyService) {}
@@ -76,6 +77,7 @@ export class PropertyController {
       req.user?.userId as string,
       propertyId,
       req.body as any,
+      req.user?.role as Role,
     );
 
     req.log?.info({ propertyId }, "property updated");
@@ -84,7 +86,11 @@ export class PropertyController {
 
   async deleteProperty(req: Request, res: Response): Promise<void> {
     const propertyId = req.params.id as string;
-    await this.service.deleteProperty(req.user?.userId as string, propertyId);
+    await this.service.deleteProperty(
+      req.user?.userId as string,
+      propertyId,
+      req.user?.role as Role,
+    );
     req.log?.info({ propertyId }, "property deleted");
     ResponseHelper.noContent(res);
   }

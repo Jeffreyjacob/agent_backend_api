@@ -1,4 +1,4 @@
-import { Property, PropertyStatus } from "@prisma/client";
+import { Property, PropertyStatus, Role } from "@prisma/client";
 import { PropertyRepository } from "./property.repository";
 import { PropertyImageRepository } from "./propertyImage.repository";
 import {
@@ -201,10 +201,11 @@ export class PropertyService {
     userId: string,
     propertyId: string,
     data: IUpdatePropertyPayload,
+    role: Role,
   ): Promise<Property> {
     const property = await this.propertyRepo.findOne({
       id: propertyId,
-      agentId: userId,
+      ...(role === Role.AGENT && { agentId: userId }),
     });
 
     if (!property) throw new NotFoundError("unable to find property");
@@ -257,10 +258,13 @@ export class PropertyService {
 
     if (!updateProperty) throw new BadRequestError("unable to update property");
 
+    const updatedPropertyData =
+      await this.propertyRepo.findProperty(propertyId);
+
     try {
       const key = `${CacheKey.Property}:${propertyId}`;
       await this.cacheService.del(key);
-      await this.cacheService.set(key, updateProperty, 300);
+      await this.cacheService.set(key, updatedPropertyData, 300);
     } catch (error: any) {
       logger.warn({ err: error, propertyId }, "unable to cache property");
     }
@@ -277,10 +281,11 @@ export class PropertyService {
   async deleteProperty(
     userId: string,
     propertyId: string,
+    role: Role,
   ): Promise<{ message: string }> {
     const property = await this.propertyRepo.findOne({
       id: propertyId,
-      agentId: userId,
+      ...(role === Role.AGENT && { agentId: userId }),
     });
 
     if (!property) throw new BadRequestError("Unable to find property");

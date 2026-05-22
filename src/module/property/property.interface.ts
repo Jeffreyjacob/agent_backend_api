@@ -56,6 +56,7 @@ export interface IGetPropertyQuery {
     max: number;
   };
   type?: PropertyType;
+  status: PropertyStatus;
   category?: PropertyCategory;
   city?: string;
   page?: number;
@@ -91,8 +92,4 @@ export interface IPropertyResponse extends Property {
       user: Pick<User, "id" | "firstName" | "lastName">;
     }[];
   agent: Pick<User, "id" | "firstName" | "lastName" | "email">;
-}
-
-export interface ISetPrimaryImagePayload {
-  imageId: string;
 }

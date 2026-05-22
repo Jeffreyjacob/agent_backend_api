@@ -2,7 +2,6 @@ import Joi, { ObjectSchema } from "joi";
 import {
   ICreatePropertyPayload,
   IGetPropertyQuery,
-  ISetPrimaryImagePayload,
   IUpdatePropertyPayload,
   PropertySortEnum,
 } from "./property.interface";
@@ -64,6 +63,9 @@ export const getPropertySchema: ObjectSchema<IGetPropertyQuery> = Joi.object({
   category: Joi.string()
     .valid(...Object.values(PropertyCategory))
     .optional(),
+  status: Joi.string()
+    .valid(...Object.values(PropertyStatus))
+    .optional(),
   city: Joi.string().optional(),
   featured: Joi.boolean().optional(),
   agentId: Joi.string().optional(),
@@ -75,8 +77,3 @@ export const getPropertySchema: ObjectSchema<IGetPropertyQuery> = Joi.object({
   page: Joi.number().min(1).optional(),
   limit: Joi.number().min(1).optional(),
 });
-
-export const setPrimaryImageSchema: ObjectSchema<ISetPrimaryImagePayload> =
-  Joi.object({
-    imageId: Joi.string().required(),
-  });

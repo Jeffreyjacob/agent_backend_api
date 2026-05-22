@@ -28,6 +28,10 @@ export class PropertyRepository extends BaseRepository<
       query.category = data.category;
     }
 
+    if (data.status) {
+      query.state = data.status;
+    }
+
     if (data.type) {
       query.type = data.type;
     }
