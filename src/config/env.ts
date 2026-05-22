@@ -27,6 +27,9 @@ interface EnvConfig {
   FRONTENDURL: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_CLOUD_API_KEY: string;
+  CLOUDINARY_CLOUD_API_SECRET: string;
 }
 
 const validatatEnv = (): EnvConfig => {
@@ -43,6 +46,9 @@ const validatatEnv = (): EnvConfig => {
     "REFRESHTOKEN_EXPIRES_IN",
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_CLOUD_API_KEY",
+    "CLOUDINARY_CLOUD_API_SECRET",
   ];
 
   const missing_env = REQUIRED_ENV.filter((env) => !process.env[env]);
@@ -74,6 +80,9 @@ const validatatEnv = (): EnvConfig => {
     FRONTENDURL: process.env.FRONTENDURL || "http://localhost:5173",
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
+    CLOUDINARY_CLOUD_API_KEY: process.env.CLOUDINARY_CLOUD_API_KEY!,
+    CLOUDINARY_CLOUD_API_SECRET: process.env.CLOUDINARY_CLOUD_API_SECRET!,
   };
 };
 

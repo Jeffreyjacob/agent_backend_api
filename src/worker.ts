@@ -1,14 +1,17 @@
 import { prisma } from "./config/database";
 import { logger } from "./config/logger";
 import { disconnectRedis } from "./config/redis";
-import { getEmailQueue } from "./jobs/queues/email";
 import { createEmailWorker } from "./jobs/workers/email";
+import { createUploadImageWorker } from "./jobs/workers/uploadImage";
+import { PropertyImageRepository } from "./module/property/propertyImage.repository";
 
 const startWorker = async () => {
   try {
     logger.info("starting worker...");
     await prisma.$connect();
+    const propertImageRepo = new PropertyImageRepository();
     const emailWorker = createEmailWorker();
+    const uploadImageWorker = createUploadImageWorker(propertImageRepo);
 
     const gracefulShutdown = async (signal: string) => {
       logger.info({ signal }, "start graceful shut down ");
@@ -22,6 +25,7 @@ const startWorker = async () => {
         await disconnectRedis();
         clearTimeout(forceExitTimer);
         await emailWorker.close();
+        await uploadImageWorker.close();
         logger.info("shutting down gracefully");
         process.exit(0);
       } catch (error: any) {

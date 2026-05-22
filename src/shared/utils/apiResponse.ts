@@ -37,6 +37,10 @@ export class ResponseHelper {
     return this.success(res, data, 200, message);
   }
 
+  static noContent(res: Response): Response {
+    return res.status(204).send();
+  }
+
   static error(
     res: Response,
     message: string,

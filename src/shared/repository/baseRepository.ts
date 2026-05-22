@@ -23,7 +23,12 @@ type PrismaDelegate<T> = {
   }): Promise<any>;
   createMany(args: {
     data: Prisma.Args<T, "createMany">["data"];
+    skipDuplicates?: Prisma.Args<T, "createMany">["skipDuplicates"];
   }): Promise<any>;
+  updateMany(args: {
+    where?: Prisma.Args<T, "createMany">["where"];
+    data: Prisma.Args<T, "updateMany">["data"];
+  }): Promise<Prisma.BatchPayload>;
 };
 
 export abstract class BaseRepository<TDelegate, TResult> {
@@ -124,9 +129,20 @@ export abstract class BaseRepository<TDelegate, TResult> {
     return this.model.deleteMany({ where });
   }
 
-  async createMany(
-    data: Prisma.Args<TDelegate, "createMany">["data"],
-  ): Promise<{ count: number }> {
-    return this.model.createMany({ data });
+  async createMany({
+    data,
+    skipDuplicates,
+  }: {
+    data: Prisma.Args<TDelegate, "createMany">["data"];
+    skipDuplicates?: Prisma.Args<TDelegate, "createMany">["skipDuplicates"];
+  }): Promise<{ count: number }> {
+    return this.model.createMany({ data, skipDuplicates });
+  }
+
+  async updateMany(args: {
+    where?: Prisma.Args<TDelegate, "updateMany">["where"];
+    data: Prisma.Args<TDelegate, "updateMany">["data"];
+  }): Promise<Prisma.BatchPayload> {
+    return await this.model.updateMany({ where: args.where, data: args.data });
   }
 }
