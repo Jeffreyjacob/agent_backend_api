@@ -189,11 +189,12 @@ model PropertyImage {
   propertyId  String
   property  Property  @relation(fields: [propertyId],references: [id],onDelete:Cascade)
   url  String
-  publicId   String
+  publicId   String 
   isPrimary  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([propertyId])
+  @@unique([propertyId, publicId])
 }
 
 model Booking {

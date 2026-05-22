@@ -12,3 +12,21 @@ export const generateToken = (): string => {
 export const hashToken = (token: string): string => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
+
+export const CacheKey = {
+  Properties: "PROPERTIES",
+  Property: "PROPERTY",
+} as const;
+
+export const generateCacheKeyWithQuery = (
+  resource: string,
+  query: Record<string, any>,
+): string => {
+  const filters = Object.entries(query)
+    .map(([key, value]) => {
+      return `${key}=${value}`;
+    })
+    .join(":");
+
+  return `${resource}:${filters}`;
+};
