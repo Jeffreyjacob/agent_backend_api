@@ -1,4 +1,4 @@
-import { Property, PropertyStatus, Role } from "@prisma/client";
+import { BookingStatus, Property, PropertyStatus, Role } from "@prisma/client";
 import { PropertyRepository } from "./property.repository";
 import { PropertyImageRepository } from "./propertyImage.repository";
 import {
@@ -18,11 +18,17 @@ import { logger } from "../../config/logger";
 import { CacheService } from "../../shared/cache/cache";
 import { CacheKey, generateCacheKeyWithQuery } from "../../shared/utils/helper";
 import { cloudinary } from "../../config/cloudinary";
+import { BookingRepository } from "../bookings/booking.repository";
+import { prisma } from "../../config/database";
+import { getCancelBookingQueue } from "../../jobs/queues/cancelBooking";
+import { getEmailQueue } from "../../jobs/queues/email";
+import { bookingCancelledBuyerEmail } from "../../shared/utils/emailTemplate/bookingCancelledBuyerEmail";
 
 export class PropertyService {
   constructor(
     private readonly propertyRepo: PropertyRepository,
     private readonly propertImageRepo: PropertyImageRepository,
+    private readonly bookingRepo: BookingRepository,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -245,6 +251,151 @@ export class PropertyService {
 
       if (!statusCheck[property.status].includes(data.status))
         throw new BadRequestError("unable to update property to this status");
+
+      if (data.status === "RENTED" || data.status === "SOLD") {
+        const pendingBooking = await this.bookingRepo.findMany({
+          where: {
+            status: "PENDING",
+            propertyId: property.id,
+          },
+          include: {
+            buyer: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            agent: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        });
+
+        for (const booking of pendingBooking.data) {
+          if (booking.autoConfirmJobId) {
+            const cancelQueue = getCancelBookingQueue();
+            await cancelQueue.remove(booking.autoConfirmJobId);
+          }
+        }
+
+        const confirmedBooking = await this.bookingRepo.findMany({
+          where: {
+            status: "CONFIRMED",
+            propertyId: property.id,
+          },
+          include: {
+            reminderJobs: true,
+            buyer: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            agent: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        });
+
+        for (const booking of confirmedBooking.data as any) {
+          if (booking.reminderJobs.length > 0) {
+            const emailJob = getEmailQueue();
+            await Promise.all(
+              booking.reminderJobs.map(
+                async (job: any) => await emailJob.remove(job.reminderJobId),
+              ),
+            );
+          }
+        }
+
+        await prisma.$transaction(async (tx) => {
+          await tx.booking.updateMany({
+            where: {
+              propertyId: property.id,
+              status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+            },
+            data: {
+              status: BookingStatus.CANCELLED,
+              cancelReason: `Property has been ${data.status?.toLowerCase()}`,
+              cancelledBy: userId,
+            },
+          });
+
+          await tx.bookingReminderJob.deleteMany({
+            where: {
+              bookingId: {
+                in: confirmedBooking.data.map((booking) => booking.id),
+              },
+            },
+          });
+        });
+
+        for (const booking of pendingBooking.data) {
+          try {
+            const emailJob = getEmailQueue();
+            await emailJob.add("email", {
+              email: (booking as any).buyer.email,
+              subject: "Booking Cancelled",
+              html: bookingCancelledBuyerEmail({
+                buyerName: `${(booking as any).buyer.firstName} ${(booking as any).buyer.lastName}`,
+                bookingId: booking.id,
+                agentName: `${(booking as any).agent.firstName} ${(booking as any).agent.lastName}`,
+                propertyTitle: property.title,
+                propertyAddress: property.address,
+                viewingDate: booking.startTime.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }),
+                viewingTime: booking.startTime.toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                cancelReason: `Property has been ${data.status?.toLowerCase()}`,
+              }),
+            });
+          } catch (error: any) {
+            logger.warn({ err: error }, "unable to add email job to queue");
+          }
+        }
+
+        for (const booking of confirmedBooking.data) {
+          try {
+            const emailJob = getEmailQueue();
+            await emailJob.add("email", {
+              email: (booking as any).buyer.email,
+              subject: "Booking Cancelled",
+              html: bookingCancelledBuyerEmail({
+                buyerName: `${(booking as any).buyer.firstName} ${(booking as any).buyer.lastName}`,
+                bookingId: booking.id,
+                agentName: `${(booking as any).agent.firstName} ${(booking as any).agent.lastName}`,
+                propertyTitle: property.title,
+                propertyAddress: property.address,
+                viewingDate: booking.startTime.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }),
+                viewingTime: booking.startTime.toLocaleTimeString("en-GB", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                cancelReason: `Property has been ${data.status?.toLowerCase()}`,
+              }),
+            });
+          } catch (error: any) {
+            logger.warn({ err: error }, "unable to add email job to queue");
+          }
+        }
+      }
     }
 
     const updateProperty = await this.propertyRepo.update(

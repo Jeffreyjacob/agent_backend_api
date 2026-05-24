@@ -52,9 +52,10 @@ export abstract class BaseRepository<TDelegate, TResult> {
 
   async findMany(params?: {
     where?: Prisma.Args<TDelegate, "findMany">["where"];
-    orderBy?: Prisma.Args<TDelegate, "findFirst">["orderBy"];
+    orderBy?: Prisma.Args<TDelegate, "findMany">["orderBy"];
     page?: number;
     limit?: number;
+    include?: Prisma.Args<TDelegate, "findMany">["include"];
   }): Promise<{
     data: TResult[];
     total: number;
@@ -71,6 +72,7 @@ export abstract class BaseRepository<TDelegate, TResult> {
         orderBy: params?.orderBy,
         skip,
         take: limit,
+        include: params?.include,
       } as Prisma.Args<TDelegate, "findMany">),
       this.model.count({
         where: params?.where,

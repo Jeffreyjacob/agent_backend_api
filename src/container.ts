@@ -3,6 +3,7 @@ import { AuthController } from "./module/authentication/auth.controller";
 import { AuthRepository } from "./module/authentication/auth.repository";
 import { AuthService } from "./module/authentication/auth.service";
 import { RefreshTokenRepository } from "./module/authentication/refreshToken.repository";
+import { BookingRepository } from "./module/bookings/booking.repository";
 import { PropertyController } from "./module/property/property.controller";
 import { PropertyRepository } from "./module/property/property.repository";
 import { PropertyService } from "./module/property/property.service";
@@ -18,12 +19,14 @@ const userRepo = new UserRepositrory();
 const propertyRepo = new PropertyRepository();
 const propertyImageRepo = new PropertyImageRepository();
 const cacheService = new CacheService(redis);
+const bookingRepo = new BookingRepository();
 
 const authService = new AuthService(authRepo, refreshTokenRepo);
 const userService = new UserService(userRepo);
 const propertyService = new PropertyService(
   propertyRepo,
   propertyImageRepo,
+  bookingRepo,
   cacheService,
 );
 
