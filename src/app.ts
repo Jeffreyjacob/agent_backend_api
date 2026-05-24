@@ -16,6 +16,7 @@ import { bullboardRouter } from "./jobs/bullBoard";
 import authRoutes from "./module/authentication/auth.routes";
 import userRoutes from "./module/users/user.route";
 import propertyRoutes from "./module/property/property.route";
+import bookingRoutes from "./module/bookings/booking.routes";
 
 class App {
   public readonly express: Application;
@@ -83,6 +84,7 @@ class App {
     this.express.use("/api/v1/auth", authRoutes);
     this.express.use("/api/v1/user", userRoutes);
     this.express.use("/api/v1/property", propertyRoutes);
+    this.express.use("/api/v1/booking", bookingRoutes);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);

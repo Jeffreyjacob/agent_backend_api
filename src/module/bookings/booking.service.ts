@@ -7,8 +7,12 @@ import {
 } from "@prisma/client";
 import { BookingRepository } from "./booking.repository";
 import {
+  IBookingList,
+  IBookingResponse,
   ICancelBookingPayload,
   ICreateBookingPayload,
+  IGetBookingPayload,
+  IRescheduleBookingPayload,
 } from "./booking.interface";
 import { PropertyRepository } from "../property/property.repository";
 import {
@@ -391,7 +395,7 @@ export class BookingService {
       },
     );
 
-    if (updateBooking) throw new BadRequestError("unable to update booking");
+    if (!updateBooking) throw new BadRequestError("unable to update booking");
 
     return booking;
   }
@@ -432,7 +436,7 @@ export class BookingService {
       },
     );
 
-    if (updateBooking) throw new BadRequestError("unable to update booking");
+    if (!updateBooking) throw new BadRequestError("unable to update booking");
 
     try {
       const emailJob = getEmailQueue();
@@ -507,15 +511,10 @@ export class BookingService {
     )
       throw new BadRequestError("You cant update booking at the moment");
 
-    const updateBooking = await this.bookingRepo.update(
-      {
-        id: booking.id,
-      },
-      {
-        status: BookingStatus.CANCELLED,
-        ...(data.cancelReason && { cancelReason: data.cancelReason }),
-        cancelledBy: userId,
-      },
+    const updateBooking = await this.bookingRepo.cancelBooking(
+      booking.id,
+      userId,
+      data,
     );
 
     if (!updateBooking) throw new BadRequestError("unable to update booking");
@@ -554,32 +553,6 @@ export class BookingService {
     if (role === Role.BUYER) {
       try {
         await emailJob.add("email", {
-          email: (booking as any).buyer.email,
-          subject: "Booking Cancelled",
-          html: bookingCancelledBuyerEmail({
-            buyerName: `${(booking as any).buyer.firstName} ${(booking as any).buyer.lastName}`,
-            bookingId: booking.id,
-            agentName: `${(booking as any).agent.firstName} ${(booking as any).agent.lastName}`,
-            propertyTitle: (booking as any).property.title,
-            propertyAddress: (booking as any).property.address,
-            viewingDate: booking.startTime.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }),
-            viewingTime: booking.startTime.toLocaleTimeString("en-GB", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            cancelReason: data.cancelReason,
-          }),
-        });
-      } catch (error: any) {
-        logger.warn({ err: error }, "unable to add email job to queue");
-      }
-    } else if (role === "AGENT") {
-      try {
-        await emailJob.add("email", {
           email: (booking as any).agent.email,
           subject: "Booking Cancelled",
           html: bookingCancelledAgentEmail({
@@ -603,8 +576,201 @@ export class BookingService {
       } catch (error: any) {
         logger.warn({ err: error }, "unable to add email job to queue");
       }
+    } else if (role === "AGENT") {
+      try {
+        await emailJob.add("email", {
+          email: (booking as any).buyer.email,
+          subject: "Booking Cancelled",
+          html: bookingCancelledBuyerEmail({
+            buyerName: `${(booking as any).buyer.firstName} ${(booking as any).buyer.lastName}`,
+            bookingId: booking.id,
+            agentName: `${(booking as any).agent.firstName} ${(booking as any).agent.lastName}`,
+            propertyTitle: (booking as any).property.title,
+            propertyAddress: (booking as any).property.address,
+            viewingDate: booking.startTime.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            viewingTime: booking.startTime.toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            cancelReason: data.cancelReason,
+          }),
+        });
+      } catch (error: any) {
+        logger.warn({ err: error }, "unable to add email job to queue");
+      }
     }
 
     return updateBooking;
+  }
+
+  async rescheduleBooking(
+    userId: string,
+    bookingId: string,
+    data: IRescheduleBookingPayload,
+  ): Promise<Booking> {
+    const booking = await this.bookingRepo.findOne({
+      id: bookingId,
+      buyerId: userId,
+    });
+
+    if (!booking) throw new NotFoundError("unable to find booking");
+
+    if (booking.status !== BookingStatus.PENDING)
+      throw new BadRequestError(
+        "You can't reschedule a booking, if the agent have confirmed it",
+      );
+
+    const agent = await this.userRepo.findById(booking.agentId);
+    if (!agent) throw new NotFoundError("unable to find agent");
+
+    const property = await this.propertyRepo.findById(booking.propertyId);
+    if (!property) throw new NotFoundError("unable to find property");
+
+    const viewDuration =
+      property.viewingDuration ?? agent.defaultViewingDuration ?? 30;
+
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(startTime.getTime() + viewDuration * 60 * 1000);
+
+    if (startTime.getTime() < Date.now())
+      throw new BadRequestError("start time must be greater than current time");
+
+    const buyerCheck = await this.bookingRepo.checkBuyerBookingTimeConflict(
+      userId,
+      startTime,
+      endTime,
+    );
+    const agentCheck = await this.bookingRepo.checkAgentBookingTimeConflict(
+      agent.id,
+      startTime,
+      endTime,
+    );
+
+    if (buyerCheck)
+      throw new ConflictError(
+        "buyer already have a booking conflicting with the selected time, Please pick a different time",
+      );
+
+    if (agentCheck)
+      throw new ConflictError(
+        "agent already have a booking conflicting with the selected time, Please pick a different time",
+      );
+
+    const updateBooking = await this.bookingRepo.rescheduleBooking(
+      booking.id,
+      startTime,
+      endTime,
+    );
+
+    if (!updateBooking)
+      throw new BadRequestError("unable to update booking time");
+
+    // cancel old cancelbooking job and update with new time
+
+    if (booking.autoConfirmJobId) {
+      const cancelQueue = getCancelBookingQueue();
+      await cancelQueue.remove(booking.autoConfirmJobId);
+    }
+
+    try {
+      const cancelQueue = getCancelBookingQueue();
+      const today = new Date();
+      const cancelTime = today.getTime() + 48 * 60 * 60 * 1000;
+
+      const cancelJob = await cancelQueue.add(
+        "cancelBooking",
+        {
+          bookingId: booking.id,
+          buyerId: userId,
+          propertyTitle: property.title,
+          propertyAddress: property.address,
+        },
+        {
+          delay: cancelTime - Date.now(),
+        },
+      );
+
+      await this.bookingRepo.update(
+        {
+          id: booking.id,
+        },
+        {
+          autoConfirmJobId: cancelJob.id,
+        },
+      );
+    } catch (error: any) {
+      logger.warn({ err: error }, "unable to add cancelbooking job to queue");
+    }
+
+    return updateBooking;
+  }
+
+  async getBuyerBooking(
+    userId: string,
+    data: IGetBookingPayload,
+  ): Promise<IBookingList> {
+    const bookings = await this.bookingRepo.getBookings(
+      userId,
+      data,
+      Role.BUYER,
+    );
+
+    return bookings;
+  }
+
+  async getAgentBooking(
+    userId: string,
+    data: IGetBookingPayload,
+  ): Promise<IBookingList> {
+    const bookings = await this.bookingRepo.getBookings(
+      userId,
+      data,
+      Role.AGENT,
+    );
+
+    return bookings;
+  }
+
+  async getBookingById(bookingId: string): Promise<IBookingResponse> {
+    const booking = await this.bookingRepo.findOne(
+      {
+        id: bookingId,
+      },
+      {
+        buyer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            type: true,
+            category: true,
+          },
+        },
+        agent: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    );
+
+    if (!booking) throw new NotFoundError("unable to find booking");
+
+    return booking as IBookingResponse;
   }
 }
