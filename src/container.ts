@@ -10,6 +10,9 @@ import { PropertyController } from "./module/property/property.controller";
 import { PropertyRepository } from "./module/property/property.repository";
 import { PropertyService } from "./module/property/property.service";
 import { PropertyImageRepository } from "./module/property/propertyImage.repository";
+import { ReviewController } from "./module/reviews/review.controller";
+import { ReviewRepository } from "./module/reviews/review.repository";
+import { ReviewService } from "./module/reviews/review.service";
 import { UserController } from "./module/users/user.controller";
 import { UserRepositrory } from "./module/users/user.repository";
 import { UserService } from "./module/users/user.service";
@@ -22,6 +25,7 @@ const propertyRepo = new PropertyRepository();
 const propertyImageRepo = new PropertyImageRepository();
 const cacheService = new CacheService(redis);
 const bookingRepo = new BookingRepository();
+const reviewRepo = new ReviewRepository();
 
 const authService = new AuthService(authRepo, refreshTokenRepo);
 const userService = new UserService(userRepo);
@@ -32,8 +36,10 @@ const propertyService = new PropertyService(
   cacheService,
 );
 const bookingService = new BookingService(bookingRepo, propertyRepo, userRepo);
+const reviewService = new ReviewService(reviewRepo, bookingRepo);
 
 export const authController = new AuthController(authService);
 export const userController = new UserController(userService);
 export const propertiesController = new PropertyController(propertyService);
 export const bookingController = new BookingController(bookingService);
+export const reviewController = new ReviewController(reviewService);
