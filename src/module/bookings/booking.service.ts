@@ -15,11 +15,7 @@ import {
   IRescheduleBookingPayload,
 } from "./booking.interface";
 import { PropertyRepository } from "../property/property.repository";
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "../../shared/error";
+import { BadRequestError, NotFoundError } from "../../shared/error";
 import { UserRepositrory } from "../users/user.repository";
 import { getCancelBookingQueue } from "../../jobs/queues/cancelBooking";
 import { getEmailQueue } from "../../jobs/queues/email";
@@ -691,6 +687,7 @@ export class BookingService {
       data,
       Role.AGENT,
     );
+    console.log(bookings, "bookings");
 
     return bookings;
   }
