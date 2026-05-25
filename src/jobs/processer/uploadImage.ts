@@ -25,7 +25,7 @@ export const uploadImageProcessor = async (
       files.map(async (file) => {
         const publicId = crypto
           .createHash("sha256")
-          .update(file.base64)
+          .update(`${propertyId}:${file.base64}`)
           .digest("hex");
 
         return await cloudinary.uploader.upload(
@@ -46,7 +46,10 @@ export const uploadImageProcessor = async (
         public_id: r.value.public_id,
       }));
 
+    console.log(url, "completed upload");
+
     const failedUpload = result.filter((r) => r.status === "rejected");
+    console.log(failedUpload, "failed upload");
 
     if (failedUpload.length > 0) {
       logger.warn(

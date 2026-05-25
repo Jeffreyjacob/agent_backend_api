@@ -62,6 +62,13 @@ export const errorHandlerMiddleware = (
   }
 
   if (!res.headersSent) {
-    ResponseHelper.error(res, message, statusCode, code, details);
+    return res.status(statusCode).json({
+      message,
+      error: {
+        code,
+        ...(details ? { details } : {}),
+        ...(env.NODE_ENV === "development" && { stack: err.stack }),
+      },
+    });
   }
 };

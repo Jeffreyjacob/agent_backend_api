@@ -69,35 +69,12 @@ export class BookingService {
     if (startTime < new Date())
       throw new BadRequestError("start time must be greater than now");
 
-    const buyerCheck = await this.bookingRepo.checkBuyerBookingTimeConflict(
-      userId,
+    const booking = await this.bookingRepo.createBookingWithLock({
       startTime,
       endTime,
-    );
-    const agentCheck = await this.bookingRepo.checkAgentBookingTimeConflict(
-      property.agentId,
-      startTime,
-      endTime,
-    );
-
-    if (buyerCheck)
-      throw new ConflictError(
-        "buyer already have a booking conflicting with the selected time, Please pick a different time",
-      );
-
-    if (agentCheck)
-      throw new ConflictError(
-        "agent already have a booking conflicting with the selected time, Please pick a different time",
-      );
-
-    const booking = await this.bookingRepo.create({
-      propertyId: data.propertyId,
       buyerId: userId,
+      propertyId: property.id,
       agentId: property.agentId,
-      status: BookingStatus.PENDING,
-      startTime,
-      endTime: endTime,
-      ...(data.note && { notes: data.note }),
     });
 
     // autocancel booking, after 48 hours if agent does not confirmed booking
@@ -639,35 +616,13 @@ export class BookingService {
     if (startTime.getTime() < Date.now())
       throw new BadRequestError("start time must be greater than current time");
 
-    const buyerCheck = await this.bookingRepo.checkBuyerBookingTimeConflict(
-      userId,
+    const updateBooking = await this.bookingRepo.updateBookingWithLock({
       startTime,
       endTime,
-    );
-    const agentCheck = await this.bookingRepo.checkAgentBookingTimeConflict(
-      agent.id,
-      startTime,
-      endTime,
-    );
-
-    if (buyerCheck)
-      throw new ConflictError(
-        "buyer already have a booking conflicting with the selected time, Please pick a different time",
-      );
-
-    if (agentCheck)
-      throw new ConflictError(
-        "agent already have a booking conflicting with the selected time, Please pick a different time",
-      );
-
-    const updateBooking = await this.bookingRepo.rescheduleBooking(
-      booking.id,
-      startTime,
-      endTime,
-    );
-
-    if (!updateBooking)
-      throw new BadRequestError("unable to update booking time");
+      agentId: property.agentId,
+      buyerId: userId,
+      bookingId: booking.id,
+    });
 
     // cancel old cancelbooking job and update with new time
 

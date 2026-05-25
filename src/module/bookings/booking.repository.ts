@@ -8,6 +8,7 @@ import {
   IGetBookingPayload,
 } from "./booking.interface";
 import { getDateRange } from "../../shared/utils/helper";
+import { ConflictError } from "../../shared/error";
 
 export class BookingRepository extends BaseRepository<
   Prisma.BookingDelegate,
@@ -17,32 +18,106 @@ export class BookingRepository extends BaseRepository<
     super(prisma.booking);
   }
 
-  async checkBuyerBookingTimeConflict(
-    buyerId: string,
-    startTime: Date,
-    endTime: Date,
-  ): Promise<boolean> {
-    const checkBooking = await this.findOne({
-      buyerId,
-      startTime: { lt: endTime },
-      endTime: { gt: startTime },
+  async createBookingWithLock(data: {
+    startTime: Date;
+    endTime: Date;
+    agentId: string;
+    buyerId: string;
+    propertyId: string;
+    note?: string;
+  }): Promise<Booking> {
+    const booking = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.agentId}))`;
+
+      const agentConflict = await tx.booking.findFirst({
+        where: {
+          agentId: data.agentId,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          startTime: { lt: data.endTime },
+          endTime: { gt: data.startTime },
+        },
+      });
+
+      if (agentConflict)
+        throw new ConflictError(
+          "Agent already has a booking at this time, Please pick a different time",
+        );
+
+      const buyerConflict = await tx.booking.findFirst({
+        where: {
+          buyerId: data.buyerId,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          startTime: { lt: data.endTime },
+          endTime: { gt: data.startTime },
+        },
+      });
+
+      if (buyerConflict)
+        throw new ConflictError("You already have a booking at this");
+
+      return await tx.booking.create({
+        data: {
+          propertyId: data.propertyId,
+          buyerId: data.buyerId,
+          agentId: data.agentId,
+          status: BookingStatus.PENDING,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          ...(data.note && { notes: data.note }),
+        },
+      });
     });
 
-    return !!checkBooking;
+    return booking;
   }
+  async updateBookingWithLock(data: {
+    startTime: Date;
+    endTime: Date;
+    agentId: string;
+    buyerId: string;
+    bookingId: string;
+  }): Promise<Booking> {
+    const booking = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${data.agentId}))`;
 
-  async checkAgentBookingTimeConflict(
-    agentId: string,
-    startTime: Date,
-    endTime: Date,
-  ): Promise<boolean> {
-    const checkBooking = await this.findOne({
-      agentId,
-      startTime: { lt: endTime },
-      endTime: { gt: startTime },
+      const agentConflict = await tx.booking.findFirst({
+        where: {
+          agentId: data.agentId,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          startTime: { lt: data.endTime },
+          endTime: { gt: data.startTime },
+        },
+      });
+
+      if (agentConflict)
+        throw new ConflictError(
+          "Agent already has a booking at this time, Please pick a different time",
+        );
+
+      const buyerConflict = await tx.booking.findFirst({
+        where: {
+          buyerId: data.buyerId,
+          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          startTime: { lt: data.endTime },
+          endTime: { gt: data.startTime },
+        },
+      });
+
+      if (buyerConflict)
+        throw new ConflictError("You already have a booking at this");
+
+      return await tx.booking.update({
+        where: {
+          id: data.bookingId,
+        },
+        data: {
+          startTime: data.startTime,
+          endTime: data.endTime,
+        },
+      });
     });
 
-    return !!checkBooking;
+    return booking;
   }
 
   async getBookings(
