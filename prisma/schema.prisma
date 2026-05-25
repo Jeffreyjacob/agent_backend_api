@@ -211,7 +211,6 @@ model Booking {
   notes    String?
   cancelledBy   String?
   cancelReason  String?
-  reminderJobId  String?
   autoConfirmJobId String?
 
   createdAt DateTime  @default(now())
@@ -219,6 +218,7 @@ model Booking {
 
   //Relation
   review Review?
+  reminderJobs BookingReminderJob[]
 
 
   @@index([buyerId])
@@ -227,6 +227,13 @@ model Booking {
   @@index([buyerId,status])
   @@index([agentId,status])
   @@index([startTime])
+}
+
+model BookingReminderJob {
+  id String @id @default(uuid())
+  reminderJobId String
+  bookingId String
+  booking  Booking   @relation(fields: [bookingId],references: [id],onDelete: Cascade)
 }
 
 model Subscription {
