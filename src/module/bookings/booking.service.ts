@@ -152,6 +152,11 @@ export class BookingService {
         "booking has already been confirmed or cancelled ",
       );
 
+    if (new Date(booking.startTime).getTime() < Date.now())
+      throw new BadRequestError(
+        "You can't confirm this booking, startTime has passed ",
+      );
+
     const property = await this.propertyRepo.findById(booking.propertyId);
     if (!property) throw new NotFoundError("unable to find property");
 
