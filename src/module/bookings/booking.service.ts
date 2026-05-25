@@ -15,11 +15,7 @@ import {
   IRescheduleBookingPayload,
 } from "./booking.interface";
 import { PropertyRepository } from "../property/property.repository";
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "../../shared/error";
+import { BadRequestError, NotFoundError } from "../../shared/error";
 import { UserRepositrory } from "../users/user.repository";
 import { getCancelBookingQueue } from "../../jobs/queues/cancelBooking";
 import { getEmailQueue } from "../../jobs/queues/email";
@@ -150,6 +146,11 @@ export class BookingService {
     if (booking.status !== "PENDING")
       throw new BadRequestError(
         "booking has already been confirmed or cancelled ",
+      );
+
+    if (new Date(booking.startTime).getTime() < Date.now())
+      throw new BadRequestError(
+        "You can't confirm this booking, startTime has passed ",
       );
 
     const property = await this.propertyRepo.findById(booking.propertyId);
@@ -686,6 +687,7 @@ export class BookingService {
       data,
       Role.AGENT,
     );
+    console.log(bookings, "bookings");
 
     return bookings;
   }
