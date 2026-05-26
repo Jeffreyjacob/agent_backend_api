@@ -13,6 +13,9 @@ import { PropertyImageRepository } from "./module/property/propertyImage.reposit
 import { ReviewController } from "./module/reviews/review.controller";
 import { ReviewRepository } from "./module/reviews/review.repository";
 import { ReviewService } from "./module/reviews/review.service";
+import { SavedPropertyController } from "./module/savedProperty/savedproperty.controller";
+import { SavedPropertyRepository } from "./module/savedProperty/savedProperty.repository";
+import { SavedPropertyService } from "./module/savedProperty/savedproperty.service";
 import { UserController } from "./module/users/user.controller";
 import { UserRepositrory } from "./module/users/user.repository";
 import { UserService } from "./module/users/user.service";
@@ -26,6 +29,7 @@ const propertyImageRepo = new PropertyImageRepository();
 const cacheService = new CacheService(redis);
 const bookingRepo = new BookingRepository();
 const reviewRepo = new ReviewRepository();
+const savedPropertyRepo = new SavedPropertyRepository();
 
 const authService = new AuthService(authRepo, refreshTokenRepo);
 const userService = new UserService(userRepo);
@@ -37,9 +41,16 @@ const propertyService = new PropertyService(
 );
 const bookingService = new BookingService(bookingRepo, propertyRepo, userRepo);
 const reviewService = new ReviewService(reviewRepo, bookingRepo);
+const savedPropertyService = new SavedPropertyService(
+  savedPropertyRepo,
+  propertyRepo,
+);
 
 export const authController = new AuthController(authService);
 export const userController = new UserController(userService);
 export const propertiesController = new PropertyController(propertyService);
 export const bookingController = new BookingController(bookingService);
 export const reviewController = new ReviewController(reviewService);
+export const savedPropertyController = new SavedPropertyController(
+  savedPropertyService,
+);

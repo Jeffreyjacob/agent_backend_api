@@ -18,6 +18,7 @@ import userRoutes from "./module/users/user.route";
 import propertyRoutes from "./module/property/property.route";
 import bookingRoutes from "./module/bookings/booking.routes";
 import reviewRoutes from "./module/reviews/review.routes";
+import savedPropertyRoutes from "./module/savedProperty/savedproperty.routes";
 
 class App {
   public readonly express: Application;
@@ -87,6 +88,7 @@ class App {
     this.express.use("/api/v1/property", propertyRoutes);
     this.express.use("/api/v1/booking", bookingRoutes);
     this.express.use("/api/v1/review", reviewRoutes);
+    this.express.use("/api/v1/savedProperty", savedPropertyRoutes);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);
