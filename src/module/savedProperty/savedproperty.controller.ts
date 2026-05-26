@@ -41,7 +41,7 @@ export class SavedPropertyController {
   async getSavedList(req: Request, res: Response): Promise<void> {
     const result = await this.service.getSavedLists(
       req.user?.userId as string,
-      req.body as any,
+      req.query as any,
     );
 
     ResponseHelper.success(

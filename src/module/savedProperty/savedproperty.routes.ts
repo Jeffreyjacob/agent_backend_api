@@ -8,14 +8,6 @@ import { getSavedPropertySchema } from "./savedproperty.validation";
 
 const router = Router();
 
-router.post(
-  "/",
-  authMiddleware,
-  requireRole(Role.BUYER),
-  asyncHandler(
-    savedPropertyController.addSavedProperty.bind(savedPropertyController),
-  ),
-);
 router.get(
   "/",
   authMiddleware,
@@ -26,8 +18,17 @@ router.get(
   ),
 );
 
+router.post(
+  "/:propertyId",
+  authMiddleware,
+  requireRole(Role.BUYER),
+  asyncHandler(
+    savedPropertyController.addSavedProperty.bind(savedPropertyController),
+  ),
+);
+
 router.delete(
-  "/",
+  "/:propertyId",
   authMiddleware,
   requireRole(Role.BUYER),
   asyncHandler(

@@ -74,8 +74,7 @@ export class SavedPropertyRepository extends BaseRepository<
           type: p.property.type,
           category: p.property.category,
           status: p.property.status,
-          primaryImage:
-            p.property.images.find((img: any) => img.isPrimary)?.url ?? null,
+          primaryImage: p.property.images[0].url,
         },
         createdAt: p.createdAt,
       })),
