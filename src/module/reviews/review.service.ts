@@ -33,6 +33,7 @@ export class ReviewService {
     const booking = await this.bookingRepo.findOne({
       id: data.bookingId,
       status: BookingStatus.COMPLETED,
+      buyerId: userId,
     });
 
     if (!booking)
