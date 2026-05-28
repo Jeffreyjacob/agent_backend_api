@@ -6,7 +6,7 @@ export const bookingCancelledBuyerEmail = (data: {
   propertyAddress: string;
   viewingDate: string;
   viewingTime: string;
-  cancelReason?: string;
+  cancelReason: string | null;
 }) => {
   return `
     <!DOCTYPE html>
