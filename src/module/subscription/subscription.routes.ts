@@ -41,12 +41,12 @@ router.post(
   asyncHandler(subscriptionController.resubscribe.bind(subscriptionController)),
 );
 
-router.post(
+router.get(
   "/",
   authMiddleware,
   requireRole(Role.AGENT),
   asyncHandler(
-    subscriptionController.getCustomerCards.bind(subscriptionController),
+    subscriptionController.getSubscription.bind(subscriptionController),
   ),
 );
 

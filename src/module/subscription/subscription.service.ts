@@ -1,6 +1,7 @@
 import {
   Booking,
   Subscription,
+  SubscriptionDuration,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
@@ -216,6 +217,7 @@ export class SubscriptionService {
       status: SubscriptionStatus.TRIAL,
       duration: data.durartion,
       stripeSubscriptionId: stripeSubscription.id,
+      subscriptionCycleId,
       price: planLimits.price[data.durartion],
       currentPeriodStart: now,
       currentPeriodEnd: trialEnd,
@@ -338,8 +340,6 @@ export class SubscriptionService {
         duration: data.durartion,
         plan: data.plan,
         status: SubscriptionStatus.INCOMPLETE,
-        maxProperties: planLimit.maxProperties,
-        maxFeatureListings: planLimit.maxFeaturedListings,
         price: planLimit.price[data.durartion],
         stripeSubscriptionId: stripeSubscription.id,
       },

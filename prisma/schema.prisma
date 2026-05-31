@@ -250,6 +250,7 @@ model Subscription {
   currentPeriodStart  DateTime
   currentPeriodEnd    DateTime
   cancelRequested Boolean @default(false)
+  subscriptionCycleId String?
   cancelledAt   DateTime?
   gracePeriodEnd   DateTime?
   reminderJobId    String? 

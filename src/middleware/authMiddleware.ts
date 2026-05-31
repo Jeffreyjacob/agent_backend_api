@@ -43,3 +43,11 @@ export const requireRole = (...role: Role[]) => {
     next();
   };
 };
+
+export const subscriptionAgentSubscription = () => {
+  return (req: Request, res: Response, next: NextFunction) => {};
+};
+
+export const checkSubscriptionSubscriptionLimit = (
+  featureType: "property" | "featured property",
+) => {};

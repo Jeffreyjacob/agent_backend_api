@@ -60,10 +60,34 @@ export class PropertyService {
 
     if (checkIfPropertyExist) throw new ConflictError("Property already exist");
 
-    const property = await this.propertyRepo.create({
-      agentId,
-      ...data,
-      description: data.description ?? "",
+    const property = await prisma.$transaction(async (tx) => {
+      const property = await tx.property.create({
+        data: {
+          agentId,
+          ...data,
+          description: data.description ?? "",
+        },
+      });
+
+      const subscription = await tx.subscription.findFirst({
+        where: {
+          userId: agentId,
+        },
+      });
+
+      if (!subscription)
+        throw new NotFoundError("unable to find user subscription");
+
+      await tx.packageRecord.update({
+        where: {
+          subscriptionCycleId: subscription.subscriptionCycleId!,
+        },
+        data: {
+          propertiesUsed: { increment: 1 },
+        },
+      });
+
+      return property;
     });
 
     try {

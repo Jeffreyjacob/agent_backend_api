@@ -6,7 +6,11 @@ import { UnauthorizedError } from "../../shared/error";
 import { prisma } from "../../config/database";
 import { redis } from "../../config/redis";
 import { SubscriptionRepository } from "../subscription/subscription.repository";
-import { Prisma, SubscriptionStatus } from "@prisma/client";
+import {
+  Prisma,
+  SubscriptionDuration,
+  SubscriptionStatus,
+} from "@prisma/client";
 import { UserRepositrory } from "../users/user.repository";
 import { getSubscriptionQueue } from "../../jobs/queues/subscription";
 import { getEmailQueue } from "../../jobs/queues/email";
@@ -17,6 +21,7 @@ import { PaymentRepository } from "./payment.repository";
 import { IGetPaymentPayload, IPaymentListResponse } from "./payment.interface";
 import { WebHookEventRepository } from "./webhookEvent.repository";
 import { FeaturedListingRepository } from "../property/featuredProperty.repository";
+import { PLAN_LIMITS } from "../../shared/constants/subscriptionPlans";
 
 export class PaymentWebhookService {
   constructor(
@@ -287,6 +292,19 @@ export class PaymentWebhookService {
     const newPeriodStart = new Date(invoice.lines.data[0].period.start * 1000);
     const newPeriodEnd = new Date(invoice.lines.data[0].period.end * 1000);
 
+    const subscriptionCycleId = generateSubscriptionCycleId(
+      subscriptionId as string,
+      newPeriodStart,
+    );
+
+    const planLimit = PLAN_LIMITS[subscription.plan];
+
+    const durationMap: Record<SubscriptionDuration, number> = {
+      [SubscriptionDuration.MONTHLY]: 1,
+      [SubscriptionDuration.QUARTERLY]: 3,
+      [SubscriptionDuration.HALF_YEAR]: 6,
+    };
+
     await this.subscriptionRepo.update(
       {
         id: subscription.id,
@@ -295,15 +313,18 @@ export class PaymentWebhookService {
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: newPeriodStart,
         currentPeriodEnd: newPeriodEnd,
+        maxProperties:
+          subscription.plan === "BASIC"
+            ? (planLimit.maxProperties ??
+              1 * durationMap[subscription.duration])
+            : null,
+        maxFeatureListings:
+          planLimit.maxFeaturedListings * durationMap[subscription.duration],
         dunningAttempts: 0,
+        subscriptionCycleId,
         dunningLastAttempts: null,
         gracePeriodEnd: null,
       },
-    );
-
-    const subscriptionCycleId = generateSubscriptionCycleId(
-      subscriptionId as string,
-      newPeriodStart,
     );
 
     await prisma.packageRecord.create({
@@ -483,6 +504,19 @@ export class PaymentWebhookService {
           description: `Featured listing payment`,
         },
       });
+
+      const subscription = await tx.subscription.findFirst({
+        where: { userId: agentId },
+      });
+
+      if (subscription) {
+        await tx.packageRecord.update({
+          where: { subscriptionCycleId: subscription.subscriptionCycleId! },
+          data: {
+            featuredListingsUsed: { increment: 1 },
+          },
+        });
+      }
 
       return featuredListing;
     });
