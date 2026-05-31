@@ -21,6 +21,9 @@ import {
   ICancelSubscriptionPayload,
   IChangePlanPayload,
   IConfirmSubscriptionIntentPayload,
+  IPaymentMethodPayload,
+  IPaymentMethodResponse,
+  IRestartSubscriptionPayload,
   ISetupIntentResponse,
   ISubscriptionResponse,
 } from "./subscription.interface";
@@ -41,13 +44,16 @@ export class SubscriptionService {
     private readonly propertyRepo: PropertyRepository,
   ) {}
 
-  async createSetupIntent(userId: string): Promise<ISetupIntentResponse> {
+  async setupIntent(userId: string): Promise<ISetupIntentResponse> {
     const user = await this.userRepo.findById(userId);
     if (!user) throw new NotFoundError("unable to find user");
 
     const existingSubscription = await this.subscriptionRepo.findByUser(userId);
-
-    if (existingSubscription && existingSubscription.status === "ACTIVE")
+    if (
+      existingSubscription &&
+      (existingSubscription.status === "ACTIVE" ||
+        existingSubscription.status === "TRIAL")
+    )
       throw new ConflictError("you already have an active subscription");
 
     let stripeCustomerId = user.stripeCustomerId;
@@ -70,6 +76,32 @@ export class SubscriptionService {
       );
     }
 
+    // Case 2: Returning user — check if they already have a payment method
+    const existingPaymentMethods = await stripe.paymentMethods.list({
+      customer: stripeCustomerId,
+      type: "card",
+    });
+
+    const hasPaymentMethod = existingPaymentMethods.data.length > 0;
+
+    if (hasPaymentMethod) {
+      // Return existing payment methods so frontend can let user pick one
+      // or use the default
+      const customer = (await stripe.customers.retrieve(
+        stripeCustomerId,
+      )) as Stripe.Customer;
+      const defaultPaymentMethodId = customer.invoice_settings
+        ?.default_payment_method as string;
+
+      return {
+        requiresPaymentMethod: false,
+        customerId: stripeCustomerId,
+        paymentMethod:
+          defaultPaymentMethodId || existingPaymentMethods.data[0].id,
+      };
+    }
+
+    // Case 1: New user — no payment method, create SetupIntent
     const setupIntent = await stripe.setupIntents.create({
       customer: stripeCustomerId,
       payment_method_types: ["card"],
@@ -77,6 +109,7 @@ export class SubscriptionService {
     });
 
     return {
+      requiresPaymentMethod: true,
       clientSecret: setupIntent.client_secret!,
       customerId: stripeCustomerId,
     };
@@ -121,8 +154,17 @@ export class SubscriptionService {
       throw new BadRequestError("Please complete card setup first");
     }
 
+    const subscription = await this.subscriptionRepo.findOne({
+      userId,
+    });
+
+    if (subscription)
+      throw new BadRequestError(
+        "This user already have an existing subscription, if subscription is already cancelled, user the  resubscribe endpoint to restart subscription",
+      );
+
     const setupIntent = await stripe.setupIntents.retrieve(data.setupIntentId);
-    if (setupIntent.status! == "succeeded") {
+    if (setupIntent.status !== "succeeded") {
       throw new BadRequestError(
         "Card setup was not completed.Please add your card first",
       );
@@ -142,11 +184,16 @@ export class SubscriptionService {
       invoice_settings: { default_payment_method: paymentMethodId },
     });
 
+    const now = new Date();
+    const trialEnd = new Date(
+      now.getTime() + planLimits.trialDays * 24 * 60 * 60 * 1000,
+    );
+
     const stripeSubscription = await stripe.subscriptions.create(
       {
         customer: user.stripeCustomerId,
         items: [{ price: planStripeId! }],
-        trial_end: planLimits.trialDays,
+        trial_end: Math.floor(trialEnd.getTime() / 1000),
         default_payment_method: paymentMethodId,
         metadata: { userId, plan: data.plan },
         trial_settings: {
@@ -156,11 +203,6 @@ export class SubscriptionService {
       {
         idempotencyKey: `subscription:create:${userId}:${data.plan}`,
       },
-    );
-
-    const now = new Date();
-    const trialEnd = new Date(
-      now.getTime() + planLimits.trialDays * 24 * 60 * 60 * 1000,
     );
 
     const subscriptionCycleId = generateSubscriptionCycleId(
@@ -237,6 +279,79 @@ export class SubscriptionService {
     }
 
     return this.formatSubscriptionResponse(subscrtiption, userId);
+  }
+
+  async resubscribe(
+    userId: string,
+    data: IRestartSubscriptionPayload,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user) throw new NotFoundError("unable to find user");
+
+    if (!user.stripeCustomerId)
+      throw new NotFoundError("No stripe customer found");
+
+    const subscription = await this.subscriptionRepo.findOne({
+      userId,
+    });
+
+    if (!subscription)
+      throw new NotFoundError("unable to find user subscription");
+
+    if (subscription.status === "ACTIVE" || subscription.status === "TRIAL")
+      throw new BadRequestError("You already have an active subscription");
+
+    const planLimit = PLAN_LIMITS[data.plan];
+    const planStripeId = PLAN_PRICES[data.plan][data.durartion];
+    if (!planStripeId) throw new BadRequestError("Invalid plan selected");
+
+    const customer = (await stripe.customers.retrieve(
+      user.stripeCustomerId,
+    )) as Stripe.Customer;
+
+    const default_payment_method =
+      customer.invoice_settings.default_payment_method;
+
+    if (!default_payment_method)
+      throw new BadRequestError(
+        "No payment method found. Please add a payment method first",
+      );
+
+    const stripeSubscription = await stripe.subscriptions.create(
+      {
+        customer: user.stripeCustomerId,
+        items: [{ price: planStripeId }],
+        default_payment_method: default_payment_method as string,
+        payment_behavior: "default_incomplete",
+      },
+      {
+        idempotencyKey: `subscription:resubscribe:${userId}:${data.plan}:${subscription.id}`,
+      },
+    );
+
+    const updatedSubscription = await this.subscriptionRepo.update(
+      {
+        id: subscription.id,
+      },
+      {
+        duration: data.durartion,
+        plan: data.plan,
+        status: SubscriptionStatus.INCOMPLETE,
+        maxProperties: planLimit.maxProperties,
+        maxFeatureListings: planLimit.maxFeaturedListings,
+        price: planLimit.price[data.durartion],
+        stripeSubscriptionId: stripeSubscription.id,
+      },
+    );
+
+    if (!updatedSubscription)
+      throw new BadRequestError("unable to update subscription");
+
+    return {
+      message:
+        "Your request is being processed and you will notified onnce your subscription is actived",
+    };
   }
 
   async getMySubscription(userId: string): Promise<ISubscriptionResponse> {
@@ -375,7 +490,7 @@ export class SubscriptionService {
     const isDowngrade =
       subscription.plan === "PREMIUM" && data.newPlan === "BASIC";
 
-    if (!isDowngrade) {
+    if (isDowngrade) {
       await this.handleDowngrade(userId, data.newPlan);
     }
 
@@ -390,6 +505,197 @@ export class SubscriptionService {
     );
 
     return this.formatSubscriptionResponse(updatedSubscription, userId);
+  }
+
+  async initiatePaymentMethod(
+    userId: string,
+  ): Promise<{ clientSecret: string }> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user) throw new NotFoundError("unable to find user");
+
+    let stripeCustomerId = user.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+        metadata: {
+          userId: user.id,
+        },
+      });
+
+      stripeCustomerId = customer.id;
+
+      await this.userRepo.update(
+        {
+          id: user.id,
+        },
+        {
+          stripeCustomerId: customer.id,
+        },
+      );
+    }
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomerId,
+      usage: "off_session",
+      payment_method_types: ["card"],
+    });
+
+    return {
+      clientSecret: setupIntent.client_secret!,
+    };
+  }
+
+  async confirmAddPaymentMethod(
+    userId: string,
+    data: IPaymentMethodPayload,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user?.stripeCustomerId)
+      throw new NotFoundError("no stripe customer found");
+
+    const newPaymentMethod = await stripe.paymentMethods.retrieve(
+      data.paymenMethodId,
+    );
+
+    const newFingerprint = newPaymentMethod.card?.fingerprint;
+    if (!newFingerprint)
+      throw new BadRequestError(
+        "Could not retrieve card fingerprint of this payment method",
+      );
+
+    const existingPaymentMethods = await stripe.paymentMethods.list({
+      customer: user.stripeCustomerId,
+      type: "card",
+    });
+
+    const existingMatch = existingPaymentMethods.data.find(
+      (pm) => pm.card?.fingerprint === newFingerprint,
+    );
+
+    if (existingMatch) {
+      await stripe.customers.update(user.stripeCustomerId, {
+        invoice_settings: { default_payment_method: existingMatch.id },
+      });
+
+      return {
+        message: "Payment method already exists and has been set as default",
+      };
+    }
+
+    await stripe.paymentMethods.attach(data.paymenMethodId, {
+      customer: user.stripeCustomerId,
+    });
+
+    await stripe.customers.update(user.stripeCustomerId, {
+      invoice_settings: { default_payment_method: data.paymenMethodId },
+    });
+
+    return {
+      message: "Payment method has been added ",
+    };
+  }
+
+  async setDefaultPaymentMethod(
+    userId: string,
+    data: IPaymentMethodPayload,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user) throw new NotFoundError("unable to find user");
+
+    if (!user.stripeCustomerId)
+      throw new NotFoundError("No stripe customer found");
+
+    const pm = await stripe.paymentMethods.retrieve(data.paymenMethodId);
+
+    if (pm.customer !== user.stripeCustomerId)
+      throw new BadRequestError("Card does not belong to customer");
+
+    await stripe.customers.update(user.stripeCustomerId, {
+      invoice_settings: { default_payment_method: data.paymenMethodId },
+    });
+
+    return {
+      message: "Default card has been updated",
+    };
+  }
+
+  async deletePaymentMethod(
+    userId: string,
+    data: IPaymentMethodPayload,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user) throw new NotFoundError("unable to find user");
+
+    if (!user.stripeCustomerId)
+      throw new NotFoundError("No stripe customer found");
+
+    const existingPaymentMethods = await stripe.paymentMethods.list({
+      customer: user.stripeCustomerId,
+      type: "card",
+    });
+
+    const checkIfPaymentExist = existingPaymentMethods.data.find(
+      (pm) => pm.id === data.paymenMethodId,
+    );
+
+    if (!checkIfPaymentExist)
+      throw new NotFoundError(
+        "unable to find payment method in customer payment method list",
+      );
+
+    const customer = (await stripe.customers.retrieve(
+      user.stripeCustomerId,
+    )) as Stripe.Customer;
+
+    const default_payment_method =
+      customer.invoice_settings.default_payment_method;
+
+    if (data.paymenMethodId === default_payment_method)
+      throw new BadRequestError("You can't delete your default payment method");
+
+    await stripe.paymentMethods.detach(data.paymenMethodId);
+
+    return {
+      message: "payment method has been deleted",
+    };
+  }
+
+  async getCustomerCards(userId: string): Promise<IPaymentMethodResponse[]> {
+    const user = await this.userRepo.findById(userId);
+
+    if (!user) throw new NotFoundError("unable to find user");
+
+    if (!user.stripeCustomerId)
+      throw new NotFoundError("No stripe customer found");
+
+    const method = await stripe.paymentMethods.list({
+      customer: user.stripeCustomerId,
+      type: "card",
+    });
+
+    const customer = (await stripe.customers.retrieve(
+      user.stripeCustomerId,
+    )) as Stripe.Customer;
+
+    const default_payment_method =
+      customer.invoice_settings.default_payment_method;
+
+    const cards = method.data.map((pm) => ({
+      id: pm.id,
+      brand: pm.card!.brand,
+      last4: pm.card!.last4,
+      exp_month: pm.card!.exp_month,
+      exp_year: pm.card!.exp_year,
+      isDefault: pm.id === default_payment_method,
+    }));
+
+    return cards;
   }
 
   async deactivateAgentListings(userId: string): Promise<void> {

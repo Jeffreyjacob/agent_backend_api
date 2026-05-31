@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { Validate } from "../../middleware/validate";
 import {
   createPropertySchema,
+  getFeaturedListingSchema,
   getPropertySchema,
   updatePropertySchema,
 } from "./property.validation";
@@ -25,6 +26,25 @@ router.get(
   "/",
   Validate(getPropertySchema, "query"),
   asyncHandler(propertiesController.getProperties.bind(propertiesController)),
+);
+
+router.get(
+  "/featuredListing",
+  authMiddleware,
+  requireRole(Role.AGENT),
+  Validate(getFeaturedListingSchema, "query"),
+  asyncHandler(
+    propertiesController.getFeaturedListings.bind(propertiesController),
+  ),
+);
+
+router.post(
+  "/featuredListing/:propertyId",
+  authMiddleware,
+  requireRole(Role.AGENT),
+  asyncHandler(
+    propertiesController.createFeaturedListing.bind(propertiesController),
+  ),
 );
 
 router.get(

@@ -1,8 +1,16 @@
-import { BookingStatus, Property, PropertyStatus, Role } from "@prisma/client";
+import {
+  BookingStatus,
+  FeaturedListing,
+  Property,
+  PropertyStatus,
+  Role,
+} from "@prisma/client";
 import { PropertyRepository } from "./property.repository";
 import { PropertyImageRepository } from "./propertyImage.repository";
 import {
   ICreatePropertyPayload,
+  IFeaturedListingsResponse,
+  IGetFeaturedListingPayload,
   IGetPropertyQuery,
   IPropertyListResponse,
   IPropertyResponse,
@@ -11,6 +19,7 @@ import {
 import {
   BadRequestError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
 } from "../../shared/error";
 import { getUploadImageQueue } from "../../jobs/queues/uploadImage";
@@ -23,12 +32,19 @@ import { prisma } from "../../config/database";
 import { getCancelBookingQueue } from "../../jobs/queues/cancelBooking";
 import { getEmailQueue } from "../../jobs/queues/email";
 import { bookingCancelledBuyerEmail } from "../../shared/utils/emailTemplate/bookingCancelledBuyerEmail";
+import { FeaturedListingRepository } from "./featuredProperty.repository";
+import { SubscriptionRepository } from "../subscription/subscription.repository";
+import { UserRepositrory } from "../users/user.repository";
+import { stripe } from "../../config/stripe";
 
 export class PropertyService {
   constructor(
     private readonly propertyRepo: PropertyRepository,
     private readonly propertImageRepo: PropertyImageRepository,
     private readonly bookingRepo: BookingRepository,
+    private readonly featuredListingRepo: FeaturedListingRepository,
+    private readonly subscriptionRepo: SubscriptionRepository,
+    private readonly userRepo: UserRepositrory,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -480,5 +496,70 @@ export class PropertyService {
     return {
       message: "Property has been deleted",
     };
+  }
+
+  async createFeaturedListing(
+    userId: string,
+    propertyId: string,
+  ): Promise<{
+    clientSecret: string;
+    paymentIntentId: string;
+  }> {
+    const property = await this.propertyRepo.findOne({
+      id: propertyId,
+      agentId: userId,
+    });
+
+    if (!property) throw new NotFoundError("unable to find property");
+
+    const subscription = await this.subscriptionRepo.findOne({
+      userId,
+      status: { in: ["ACTIVE", "TRIAL"] },
+    });
+
+    if (!subscription) throw new ForbiddenError("Acitve subscription required");
+
+    const existingFeatured =
+      await this.featuredListingRepo.findActiveFeaturedListing(propertyId);
+
+    if (existingFeatured)
+      throw new ConflictError("Property is already featured");
+
+    const user = await this.userRepo.findById(userId);
+    if (!user?.stripeCustomerId)
+      throw new BadRequestError("Please set up payment method first");
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: 1900,
+        currency: "usd",
+        customer: user.stripeCustomerId,
+        metadata: {
+          type: "featured_listing",
+          propertyId,
+          agentId: userId,
+        },
+        description: `Featured listing for ${property.title}`,
+      },
+      {
+        idempotencyKey: `featured:${propertyId}:${userId}:${today}`,
+      },
+    );
+
+    return {
+      clientSecret: paymentIntent.client_secret!,
+      paymentIntentId: paymentIntent.id,
+    };
+  }
+  async getFeaturedListing(
+    userId: string,
+    data: IGetFeaturedListingPayload,
+  ): Promise<IFeaturedListingsResponse> {
+    return await this.featuredListingRepo.getFeaturedListingRepositry(
+      userId,
+      data,
+    );
   }
 }

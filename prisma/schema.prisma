@@ -62,6 +62,7 @@ enum SubscriptionDuration {
 
 enum SubscriptionStatus {
   ACTIVE 
+  INCOMPLETE
   TRIAL
   EXPIRED
   CANCELLED
@@ -336,7 +337,7 @@ model Payment {
   description  String?
   createdAt DateTime @default(now())
 
-  
+
   @@index([userId])
   @@index([stripePaymentId])
   @@index([subscriptionId])

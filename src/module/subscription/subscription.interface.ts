@@ -10,14 +10,21 @@ export enum SubscriptionSwitchEnum {
 }
 
 export interface ISetupIntentResponse {
-  clientSecret: string;
+  clientSecret?: string;
   customerId: string;
+  requiresPaymentMethod: boolean;
+  paymentMethod?: string;
 }
 
 export interface IConfirmSubscriptionIntentPayload {
   plan: SubscriptionPlan;
   durartion: SubscriptionDuration;
   setupIntentId: string;
+}
+
+export interface IRestartSubscriptionPayload {
+  plan: SubscriptionPlan;
+  durartion: SubscriptionDuration;
 }
 
 export interface ISubscriptionResponse {
@@ -42,4 +49,17 @@ export interface ICancelSubscriptionPayload {
 export interface IChangePlanPayload {
   newPlan: SubscriptionPlan;
   duration: SubscriptionDuration;
+}
+
+export interface IPaymentMethodPayload {
+  paymenMethodId: string;
+}
+
+export interface IPaymentMethodResponse {
+  id: string;
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+  isDefault: boolean;
 }

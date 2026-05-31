@@ -3,6 +3,8 @@ import {
   ICancelSubscriptionPayload,
   IChangePlanPayload,
   IConfirmSubscriptionIntentPayload,
+  IPaymentMethodPayload,
+  IRestartSubscriptionPayload,
 } from "./subscription.interface";
 import { SubscriptionDuration, SubscriptionPlan } from "@prisma/client";
 
@@ -28,6 +30,21 @@ export const changePlanPayloadSchema: ObjectSchema<IChangePlanPayload> =
       .valid(...Object.values(SubscriptionPlan))
       .required(),
     duration: Joi.string()
+      .valid(...Object.values(SubscriptionDuration))
+      .required(),
+  });
+
+export const paymentMethodSchema: ObjectSchema<IPaymentMethodPayload> =
+  Joi.object({
+    paymenMethodId: Joi.string().required(),
+  });
+
+export const restartSubscriptionSchema: ObjectSchema<IRestartSubscriptionPayload> =
+  Joi.object({
+    plan: Joi.string()
+      .valid(...Object.values(SubscriptionPlan))
+      .required(),
+    durartion: Joi.string()
       .valid(...Object.values(SubscriptionDuration))
       .required(),
   });

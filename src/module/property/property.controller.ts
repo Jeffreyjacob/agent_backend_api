@@ -94,4 +94,31 @@ export class PropertyController {
     req.log?.info({ propertyId }, "property deleted");
     ResponseHelper.noContent(res);
   }
+
+  async createFeaturedListing(req: Request, res: Response): Promise<void> {
+    const propertyId = req.params.propertyId as string;
+    const result = this.service.createFeaturedListing(
+      req.user?.userId as string,
+      propertyId,
+    );
+    req.log?.info(
+      { propertyId, userId: req.user?.userId },
+      "property has been featured",
+    );
+    ResponseHelper.success(res, result, 200, "");
+  }
+
+  async getFeaturedListings(req: Request, res: Response): Promise<void> {
+    const result = await this.service.getFeaturedListing(
+      req.user?.userId as string,
+      req.query as any,
+    );
+    ResponseHelper.success(
+      res,
+      result.data,
+      200,
+      "featured listing fetched",
+      result.meta,
+    );
+  }
 }

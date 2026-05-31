@@ -16,6 +16,7 @@ import { PropertyRepository } from "../property/property.repository";
 import { PaymentRepository } from "./payment.repository";
 import { IGetPaymentPayload, IPaymentListResponse } from "./payment.interface";
 import { WebHookEventRepository } from "./webhookEvent.repository";
+import { FeaturedListingRepository } from "../property/featuredProperty.repository";
 
 export class PaymentWebhookService {
   constructor(
@@ -24,6 +25,7 @@ export class PaymentWebhookService {
     private readonly userRepo: UserRepositrory,
     private readonly propertyRepo: PropertyRepository,
     private readonly webhookEventRepo: WebHookEventRepository,
+    private readonly featuredListingRepo: FeaturedListingRepository,
   ) {}
 
   async handleWebhook(signature: string, rawBody: Buffer): Promise<void> {
@@ -207,7 +209,7 @@ export class PaymentWebhookService {
           id: subscription.id,
         },
         {
-          status: SubscriptionStatus.GRACE_PERIOD,
+          status: SubscriptionStatus.CANCELLED,
           cancelledAt: new Date(),
           gracePeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           dunningFinalFailedAt: cancalledByStripe ? new Date() : null,
@@ -238,7 +240,7 @@ export class PaymentWebhookService {
           await emailQueue.add("email", {
             email: user.email,
             subject: "Your subscription has been cancelled",
-            html: `<p>Dear ${user.firstName}, your subscription has been suspended. You have a 7-day grace period before your listings are deactivated.</p>`,
+            html: `<p>Dear ${user.firstName}, your subscription has been cancelled. You have a 7-day grace period to subscribe again before your listings are deactivated.</p>`,
           });
         } catch (error: any) {
           logger.warn({ err: error }, "unable to send cancellation email");
@@ -500,10 +502,14 @@ export class PaymentWebhookService {
         },
       );
 
-      await prisma.featuredListing.update({
-        where: { id: featured.id },
-        data: { expiryJobId: expiryJob.id },
-      });
+      await this.featuredListingRepo.update(
+        {
+          id: featured.id,
+        },
+        {
+          expiryJobId: expiryJob.id,
+        },
+      );
     } catch (error: any) {
       logger.warn(
         { err: error },
