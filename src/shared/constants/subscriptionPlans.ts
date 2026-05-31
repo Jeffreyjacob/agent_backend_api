@@ -49,7 +49,7 @@ export const TRIAL_LIMIT: Record<
     maxFeaturedListings: 0,
   },
   PREMIUM: {
-    maxProperties: 15,
+    maxProperties: 30,
     maxFeaturedListings: 1,
   },
 };

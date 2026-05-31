@@ -19,8 +19,19 @@ export const uploadImageProcessor = async (
 ) => {
   try {
     const { propertyId, files } = job.data;
-    const canProceed = await ensureIdempotency(job?.id!);
+
+    // Verify data arrived correctly
+    console.log(
+      "Worker received files:",
+      files.map((f) => ({
+        mimeType: f.mimeType,
+        base64Length: f.base64?.length ?? 0,
+      })),
+    );
+    const canProceed = await ensureIdempotency(job?.id!, "uploadImage");
     if (!canProceed) return;
+
+    console.log("passed this");
     const result = await Promise.allSettled(
       files.map(async (file) => {
         const publicId = crypto

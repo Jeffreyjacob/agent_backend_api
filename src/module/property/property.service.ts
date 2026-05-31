@@ -111,17 +111,41 @@ export class PropertyService {
 
     if (!property) throw new NotFoundError("unable to find property");
 
+    // Convert and validate before queuing
+    const serializedFiles = files.map((file) => {
+      const base64 = file.buffer.toString("base64");
+
+      if (!base64 || base64.length === 0) {
+        throw new BadRequestError("Invalid file buffer");
+      }
+
+      return {
+        mimeType: file.mimetype,
+        base64,
+        originalName: file.originalname,
+        size: file.size,
+      };
+    });
+
     try {
       const uploadImageJob = getUploadImageQueue();
-      await uploadImageJob.add("uploadPropertyImage", {
-        propertyId: property.id,
-        files: files.map((file) => ({
-          mimeType: file.mimetype,
-          base64: file.buffer.toString("base64"),
-        })),
-      });
+      await uploadImageJob.add(
+        "uploadPropertyImage",
+        {
+          propertyId: property.id,
+          files: serializedFiles,
+        },
+        {
+          attempts: 3, // retry on failure
+          backoff: {
+            type: "exponential",
+            delay: 2000,
+          },
+        },
+      );
     } catch (error: any) {
-      logger.warn({ err: error }, "unable to queue upload image job ");
+      logger.warn({ err: error }, "unable to queue upload image job");
+      throw new BadRequestError("unable to queue image upload");
     }
 
     try {

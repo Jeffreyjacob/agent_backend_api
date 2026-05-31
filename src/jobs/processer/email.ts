@@ -11,7 +11,7 @@ interface IEmail {
 
 export const emailProcesser = async (job: Job<IEmail>) => {
   const { email, subject, html, message } = job.data;
-  const canProceed = await ensureIdempotency(job?.id!);
+  const canProceed = await ensureIdempotency(job?.id!, "email");
   if (!canProceed) return;
   await sendMails({
     to: email,

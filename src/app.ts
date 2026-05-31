@@ -48,7 +48,7 @@ class App {
   }
   setParsingMiddleware() {
     this.express.use((req, res, next) => {
-      if (req.originalUrl === "/api/v1/payment/webhook") {
+      if (req.originalUrl === "/api/v1/payment/webhook/stripe") {
         next();
       } else {
         express.json()(req, res, next);

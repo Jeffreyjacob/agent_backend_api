@@ -17,7 +17,7 @@ router.get(
 );
 
 router.post(
-  "/webhook",
+  "/webhook/stripe",
   express.raw({ type: "application/json" }),
   asyncHandler(paymentController.handleWebhook.bind(paymentController)),
 );
