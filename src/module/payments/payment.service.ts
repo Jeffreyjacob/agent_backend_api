@@ -93,7 +93,6 @@ export class PaymentWebhookService {
             event.data.object as Stripe.Subscription,
           );
           break;
-
         case "payment_intent.succeeded":
           await this.handleFeaturedListingPayment(
             event.data.object as Stripe.PaymentIntent,
@@ -469,10 +468,12 @@ export class PaymentWebhookService {
   private async handleFeaturedListingPayment(
     paymentIntent: Stripe.PaymentIntent,
   ): Promise<void> {
-    if (paymentIntent.metadata.type! == "featured_listing") return;
+    const { propertyId, agentId, type } = paymentIntent.metadata;
 
-    const { propertyId, agentId } = paymentIntent.metadata;
-
+    if (type !== "featured_listing") {
+      logger.info("skipped payment Intent ");
+      return;
+    }
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const featured = await prisma.$transaction(async (tx) => {

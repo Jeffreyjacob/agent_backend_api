@@ -97,7 +97,7 @@ export class PropertyController {
 
   async createFeaturedListing(req: Request, res: Response): Promise<void> {
     const propertyId = req.params.propertyId as string;
-    const result = this.service.createFeaturedListing(
+    const result = await this.service.createFeaturedListing(
       req.user?.userId as string,
       propertyId,
     );

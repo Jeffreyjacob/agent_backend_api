@@ -19,7 +19,7 @@ export class PaymentController {
     );
   }
   async handleWebhook(req: Request, res: Response): Promise<void> {
-    const signature = req.headers["strie-signature"] as string;
+    const signature = req.headers["stripe-signature"] as string;
     const rawBody = req.body as Buffer;
     await this.service.handleWebhook(signature, rawBody);
     res.status(200).json({ recieved: true });
