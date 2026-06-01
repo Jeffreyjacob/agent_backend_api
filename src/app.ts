@@ -19,6 +19,8 @@ import propertyRoutes from "./module/property/property.route";
 import bookingRoutes from "./module/bookings/booking.routes";
 import reviewRoutes from "./module/reviews/review.routes";
 import savedPropertyRoutes from "./module/savedProperty/savedproperty.routes";
+import paymentRoutes from "./module/payments/payment.routes";
+import subscriptionRoute from "./module/subscription/subscription.routes";
 
 class App {
   public readonly express: Application;
@@ -45,7 +47,13 @@ class App {
     this.express.use(compression());
   }
   setParsingMiddleware() {
-    this.express.use(express.json());
+    this.express.use((req, res, next) => {
+      if (req.originalUrl === "/api/v1/payment/webhook/stripe") {
+        next();
+      } else {
+        express.json()(req, res, next);
+      }
+    });
     this.express.use(express.urlencoded({ extended: true, limit: "10mb" }));
     this.express.set("trust proxy", 1);
     this.express.use(cookieParser());
@@ -89,6 +97,8 @@ class App {
     this.express.use("/api/v1/booking", bookingRoutes);
     this.express.use("/api/v1/review", reviewRoutes);
     this.express.use("/api/v1/savedProperty", savedPropertyRoutes);
+    this.express.use("/api/v1/payment", paymentRoutes);
+    this.express.use("/api/v1/subscription", subscriptionRoute);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);

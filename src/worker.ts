@@ -3,6 +3,7 @@ import { logger } from "./config/logger";
 import { disconnectRedis } from "./config/redis";
 import { createCancelBookingWorker } from "./jobs/workers/cancelBooking";
 import { createEmailWorker } from "./jobs/workers/email";
+import { createSubscriptionWorker } from "./jobs/workers/subscription";
 import { createUploadImageWorker } from "./jobs/workers/uploadImage";
 import { BookingRepository } from "./module/bookings/booking.repository";
 import { PropertyImageRepository } from "./module/property/propertyImage.repository";
@@ -21,6 +22,7 @@ const startWorker = async () => {
       bookingRepo,
       userRepo,
     );
+    const subscriptionWorker = createSubscriptionWorker();
 
     const gracefulShutdown = async (signal: string) => {
       logger.info({ signal }, "start graceful shut down ");
@@ -36,6 +38,7 @@ const startWorker = async () => {
         await emailWorker.close();
         await uploadImageWorker.close();
         await cancelBookingWorker.close();
+        await subscriptionWorker.close();
         logger.info("shutting down gracefully");
         process.exit(0);
       } catch (error: any) {

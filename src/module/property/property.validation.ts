@@ -1,11 +1,17 @@
 import Joi, { ObjectSchema } from "joi";
 import {
   ICreatePropertyPayload,
+  IGetFeaturedListingPayload,
   IGetPropertyQuery,
   IUpdatePropertyPayload,
   PropertySortEnum,
 } from "./property.interface";
-import { PropertyCategory, PropertyStatus, PropertyType } from "@prisma/client";
+import {
+  FeaturedStatus,
+  PropertyCategory,
+  PropertyStatus,
+  PropertyType,
+} from "@prisma/client";
 
 export const createPropertySchema: ObjectSchema<ICreatePropertyPayload> =
   Joi.object({
@@ -77,3 +83,12 @@ export const getPropertySchema: ObjectSchema<IGetPropertyQuery> = Joi.object({
   page: Joi.number().min(1).optional(),
   limit: Joi.number().min(1).optional(),
 });
+
+export const getFeaturedListingSchema: ObjectSchema<IGetFeaturedListingPayload> =
+  Joi.object({
+    status: Joi.string()
+      .valid(...Object.values(FeaturedStatus))
+      .optional(),
+    page: Joi.number().min(1).optional(),
+    limit: Joi.number().min(1).optional(),
+  });

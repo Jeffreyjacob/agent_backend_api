@@ -574,7 +574,7 @@ export class BookingService {
               hour: "2-digit",
               minute: "2-digit",
             }),
-            cancelReason: data.cancelReason,
+            cancelReason: data.cancelReason ?? null,
           }),
         });
       } catch (error: any) {

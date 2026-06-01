@@ -1,8 +1,16 @@
-import { BookingStatus, Property, PropertyStatus, Role } from "@prisma/client";
+import {
+  BookingStatus,
+  FeaturedListing,
+  Property,
+  PropertyStatus,
+  Role,
+} from "@prisma/client";
 import { PropertyRepository } from "./property.repository";
 import { PropertyImageRepository } from "./propertyImage.repository";
 import {
   ICreatePropertyPayload,
+  IFeaturedListingsResponse,
+  IGetFeaturedListingPayload,
   IGetPropertyQuery,
   IPropertyListResponse,
   IPropertyResponse,
@@ -11,6 +19,7 @@ import {
 import {
   BadRequestError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
 } from "../../shared/error";
 import { getUploadImageQueue } from "../../jobs/queues/uploadImage";
@@ -23,12 +32,19 @@ import { prisma } from "../../config/database";
 import { getCancelBookingQueue } from "../../jobs/queues/cancelBooking";
 import { getEmailQueue } from "../../jobs/queues/email";
 import { bookingCancelledBuyerEmail } from "../../shared/utils/emailTemplate/bookingCancelledBuyerEmail";
+import { FeaturedListingRepository } from "./featuredProperty.repository";
+import { SubscriptionRepository } from "../subscription/subscription.repository";
+import { UserRepositrory } from "../users/user.repository";
+import { stripe } from "../../config/stripe";
 
 export class PropertyService {
   constructor(
     private readonly propertyRepo: PropertyRepository,
     private readonly propertImageRepo: PropertyImageRepository,
     private readonly bookingRepo: BookingRepository,
+    private readonly featuredListingRepo: FeaturedListingRepository,
+    private readonly subscriptionRepo: SubscriptionRepository,
+    private readonly userRepo: UserRepositrory,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -44,10 +60,34 @@ export class PropertyService {
 
     if (checkIfPropertyExist) throw new ConflictError("Property already exist");
 
-    const property = await this.propertyRepo.create({
-      agentId,
-      ...data,
-      description: data.description ?? "",
+    const property = await prisma.$transaction(async (tx) => {
+      const property = await tx.property.create({
+        data: {
+          agentId,
+          ...data,
+          description: data.description ?? "",
+        },
+      });
+
+      const subscription = await tx.subscription.findFirst({
+        where: {
+          userId: agentId,
+        },
+      });
+
+      if (!subscription)
+        throw new NotFoundError("unable to find user subscription");
+
+      await tx.packageRecord.update({
+        where: {
+          subscriptionCycleId: subscription.subscriptionCycleId!,
+        },
+        data: {
+          propertiesUsed: { increment: 1 },
+        },
+      });
+
+      return property;
     });
 
     try {
@@ -71,17 +111,41 @@ export class PropertyService {
 
     if (!property) throw new NotFoundError("unable to find property");
 
+    // Convert and validate before queuing
+    const serializedFiles = files.map((file) => {
+      const base64 = file.buffer.toString("base64");
+
+      if (!base64 || base64.length === 0) {
+        throw new BadRequestError("Invalid file buffer");
+      }
+
+      return {
+        mimeType: file.mimetype,
+        base64,
+        originalName: file.originalname,
+        size: file.size,
+      };
+    });
+
     try {
       const uploadImageJob = getUploadImageQueue();
-      await uploadImageJob.add("uploadPropertyImage", {
-        propertyId: property.id,
-        files: files.map((file) => ({
-          mimeType: file.mimetype,
-          base64: file.buffer.toString("base64"),
-        })),
-      });
+      await uploadImageJob.add(
+        "uploadPropertyImage",
+        {
+          propertyId: property.id,
+          files: serializedFiles,
+        },
+        {
+          attempts: 3, // retry on failure
+          backoff: {
+            type: "exponential",
+            delay: 2000,
+          },
+        },
+      );
     } catch (error: any) {
-      logger.warn({ err: error }, "unable to queue upload image job ");
+      logger.warn({ err: error }, "unable to queue upload image job");
+      throw new BadRequestError("unable to queue image upload");
     }
 
     try {
@@ -480,5 +544,70 @@ export class PropertyService {
     return {
       message: "Property has been deleted",
     };
+  }
+
+  async createFeaturedListing(
+    userId: string,
+    propertyId: string,
+  ): Promise<{
+    clientSecret: string;
+    paymentIntentId: string;
+  }> {
+    const property = await this.propertyRepo.findOne({
+      id: propertyId,
+      agentId: userId,
+    });
+
+    if (!property) throw new NotFoundError("unable to find property");
+
+    const subscription = await this.subscriptionRepo.findOne({
+      userId,
+      status: { in: ["ACTIVE", "TRIAL"] },
+    });
+
+    if (!subscription) throw new ForbiddenError("Acitve subscription required");
+
+    const existingFeatured =
+      await this.featuredListingRepo.findActiveFeaturedListing(propertyId);
+
+    if (existingFeatured)
+      throw new ConflictError("Property is already featured");
+
+    const user = await this.userRepo.findById(userId);
+    if (!user?.stripeCustomerId)
+      throw new BadRequestError("Please set up payment method first");
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: 1900,
+        currency: "usd",
+        customer: user.stripeCustomerId,
+        metadata: {
+          type: "featured_listing",
+          propertyId,
+          agentId: userId,
+        },
+        description: `Featured listing for ${property.title}`,
+      },
+      {
+        idempotencyKey: `featured:${propertyId}:${userId}:${today}`,
+      },
+    );
+
+    return {
+      clientSecret: paymentIntent.client_secret!,
+      paymentIntentId: paymentIntent.id,
+    };
+  }
+  async getFeaturedListing(
+    userId: string,
+    data: IGetFeaturedListingPayload,
+  ): Promise<IFeaturedListingsResponse> {
+    return await this.featuredListingRepo.getFeaturedListingRepositry(
+      userId,
+      data,
+    );
   }
 }

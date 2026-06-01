@@ -14,7 +14,10 @@ export const cancelBookingProcesser = async (
 ) => {
   try {
     const { bookingId, buyerId, propertyTitle, propertyAddress } = job.data;
-    const canProceed = await ensureIdempotency(job?.id as string);
+    const canProceed = await ensureIdempotency(
+      job?.id as string,
+      "cancelBooking",
+    );
     if (!canProceed) return;
 
     const result = await bookingRepo.findOne({

@@ -1,4 +1,6 @@
 import {
+  FeaturedListing,
+  FeaturedStatus,
   Property,
   PropertyCategory,
   PropertyImage,
@@ -92,4 +94,19 @@ export interface IPropertyResponse extends Property {
       user: Pick<User, "id" | "firstName" | "lastName">;
     }[];
   agent: Pick<User, "id" | "firstName" | "lastName" | "email">;
+}
+
+export interface IFeaturedListingsResponse {
+  data: FeaturedListing[];
+  meta: {
+    total: number;
+    totalPages: number;
+    page: number;
+  };
+}
+
+export interface IGetFeaturedListingPayload {
+  status: FeaturedStatus;
+  page: number;
+  limit: number;
 }

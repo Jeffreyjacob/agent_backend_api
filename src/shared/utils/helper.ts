@@ -75,3 +75,10 @@ export const getDateRange = (args: {
 
   return dateDuration;
 };
+
+export const generateSubscriptionCycleId = (
+  subscriptionId: string,
+  periodStart: Date,
+): string => {
+  return `${subscriptionId}_${periodStart.getTime()}`;
+};
