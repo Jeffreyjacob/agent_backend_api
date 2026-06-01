@@ -615,4 +615,61 @@ export class PaymentWebhookService {
   ): Promise<IPaymentListResponse> {
     return await this.paymentRepo.getPayments(userId, data);
   }
+
+  async reprocessStoredEvent(
+    eventId: string,
+    webhookEventType: string,
+    payload: any,
+  ) {
+    try {
+      switch (webhookEventType) {
+        case "customer.subscription.created":
+          await this.handleSubscriptionCreated(payload as Stripe.Subscription);
+          break;
+        case "customer.subscription.updated":
+          await this.handleSubscriptionUpdated(payload as Stripe.Subscription);
+          break;
+        case "customer.subscription.deleted":
+          await this.handleStripeDeleted(payload as Stripe.Subscription);
+          break;
+        case "invoice.paid":
+          await this.handleInvoicePaid(payload as Stripe.Invoice);
+          break;
+        case "invoice.payment_failed":
+          await this.handleInvoicePaymentFailed(payload as Stripe.Invoice);
+          break;
+        case "customer.subscription.trial_will_end":
+          await this.handleTrialWillEnd(payload as Stripe.Subscription);
+          break;
+        case "payment_intent.succeeded":
+          await this.handleFeaturedListingPayment(
+            payload as Stripe.PaymentIntent,
+          );
+          break;
+
+        case "payment_intent.payment_failed":
+          await this.handeFeaturedListingPaymentFailed(
+            payload as Stripe.PaymentIntent,
+          );
+          break;
+
+        default:
+          logger.info(
+            { eventType: webhookEventType },
+            "unhandled webhook event type",
+          );
+      }
+
+      await this.webhookEventRepo.updateStatus(eventId, "PROCESSED");
+      logger.info({ eventId, eventType: webhookEventType });
+    } catch (error: any) {
+      await this.webhookEventRepo.updateStatus(
+        eventId,
+        "FAILED",
+        error.message,
+      );
+      logger.error({ error, eventId }, "Webhook replay failed");
+      throw error;
+    }
+  }
 }
