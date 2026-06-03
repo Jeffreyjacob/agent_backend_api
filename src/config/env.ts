@@ -36,6 +36,8 @@ interface EnvConfig {
   STRIPE_PREMIUM_MONTHLY_PRICE_ID: string;
   STRIPE_PREMIUM_QUARTERLY_PRICE_ID: string;
   STRIPE_PREMIUM_HALFYEAR_PRICE_ID: string;
+  ADMIN_EMAIL: string;
+  ADMIN_PASSWORD: string;
 }
 
 const validatatEnv = (): EnvConfig => {
@@ -107,6 +109,8 @@ const validatatEnv = (): EnvConfig => {
       .STRIPE_PREMIUM_QUARTERLY_PRICE_ID as string,
     STRIPE_PREMIUM_HALFYEAR_PRICE_ID: process.env
       .STRIPE_PREMIUM_HALFYEAR_PRICE_ID as string,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
   };
 };
 

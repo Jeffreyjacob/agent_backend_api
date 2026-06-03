@@ -10,6 +10,9 @@
     "worker": "ts-node-dev --respawn src/worker.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run worker\""
   },
+  "prisma": {
+    "seed": "ts-node src/seed.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jeffreyjacob/agent_backend_api.git"

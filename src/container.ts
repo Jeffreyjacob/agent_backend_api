@@ -28,6 +28,9 @@ import { PaymentController } from "./module/payments/payment.controller";
 import { FeaturedListingRepository } from "./module/property/featuredProperty.repository";
 import { SubscriptionService } from "./module/subscription/subscription.service";
 import { SubscriptionController } from "./module/subscription/subscription.controller";
+import { AdminRepository } from "./module/admin/admin.repository";
+import { AdminService } from "./module/admin/admin.service";
+import { AdminController } from "./module/admin/admin.controller";
 
 const authRepo = new AuthRepository();
 const refreshTokenRepo = new RefreshTokenRepository();
@@ -42,6 +45,7 @@ export const subscriptionRepo = new SubscriptionRepository();
 const webhookEventRepo = new WebHookEventRepository();
 const paymentRepo = new PaymentRepository();
 const featuredListingRepo = new FeaturedListingRepository();
+const adminRepo = new AdminRepository();
 
 const authService = new AuthService(authRepo, refreshTokenRepo);
 const userService = new UserService(userRepo);
@@ -73,6 +77,14 @@ export const subscriptionService = new SubscriptionService(
   userRepo,
   propertyRepo,
 );
+const adminService = new AdminService(
+  adminRepo,
+  paymentService,
+  subscriptionService,
+  userRepo,
+  propertyRepo,
+  webhookEventRepo,
+);
 
 export const authController = new AuthController(authService);
 export const userController = new UserController(userService);
@@ -86,3 +98,4 @@ export const paymentController = new PaymentController(paymentService);
 export const subscriptionController = new SubscriptionController(
   subscriptionService,
 );
+export const adminController = new AdminController(adminService);
