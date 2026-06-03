@@ -16,9 +16,11 @@ export const logger = pino({
   }),
   redact: [
     "*.password",
+    "*.token",
     "req.headers.authorization",
     "*.refreshtoken",
     "*.resetToken",
+    "*.stripeCustomerId",
   ],
   base: {
     name: "real estate api",
