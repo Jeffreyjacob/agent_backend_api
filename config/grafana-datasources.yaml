@@ -1,0 +1,33 @@
+# config/grafana-datasources.yaml
+
+apiVersion: 1
+# Version of the Grafana provisioning API
+
+datasources:
+  - name: Loki
+    # The name you'll see in Grafana's UI
+
+    type: loki
+    # Tell Grafana this is a Loki datasource (not Prometheus, not MySQL etc)
+
+    access: proxy
+    # "proxy" means Grafana server fetches data from Loki
+    # (as opposed to your browser fetching directly)
+    # Always use proxy — it's more secure
+
+    url: http://loki:3100
+    # WHERE IS LOKI?
+    # Notice we use "loki" not "localhost"
+    # This is crucial to understand:
+    # Inside Docker Compose, each service has a hostname
+    # equal to its service name.
+    # The Loki service is named "loki" in docker-compose.yml
+    # So from Grafana's container, Loki is at http://loki:3100
+    # NOT http://localhost:3100 (that would mean Grafana itself)
+
+    isDefault: true
+    # Make this the default datasource in Grafana
+
+    version: 1
+    editable: true
+    # Allow editing this datasource in the UI

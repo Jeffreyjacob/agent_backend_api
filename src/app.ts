@@ -12,7 +12,17 @@ import { NotFoundMiddleware } from "./middleware/notFoundMiddleware";
 import { errorHandlerMiddleware } from "./middleware/errorHandler";
 import { HealthCheck } from "./shared/healthCheck/healthCheck";
 import { asyncHandler } from "./shared/utils/asyncHandler";
-import { bullboardRouter } from "./jobs/bullBoard";
+import swaggerUi from "swagger-ui-express";
+import authRoutes from "./module/authentication/auth.routes";
+import userRoutes from "./module/users/user.routes";
+import propertyRoutes from "./module/property/property.routes";
+import bookingRoutes from "./module/bookings/booking.routes";
+import reviewRoutes from "./module/reviews/review.routes";
+import savedPropertyRoutes from "./module/savedProperty/savedproperty.routes";
+import paymentRoutes from "./module/payments/payment.routes";
+import subscriptionRoute from "./module/subscription/subscription.routes";
+import adminRoutes from "./module/admin/admin.routes";
+import { swaggerSpec } from "./config/swagger";
 
 class App {
   public readonly express: Application;
@@ -39,7 +49,13 @@ class App {
     this.express.use(compression());
   }
   setParsingMiddleware() {
-    this.express.use(express.json());
+    this.express.use((req, res, next) => {
+      if (req.originalUrl === "/api/v1/payment/webhook/stripe") {
+        next();
+      } else {
+        express.json()(req, res, next);
+      }
+    });
     this.express.use(express.urlencoded({ extended: true, limit: "10mb" }));
     this.express.set("trust proxy", 1);
     this.express.use(cookieParser());
@@ -74,9 +90,39 @@ class App {
       }),
     );
 
+    this.express.use(
+      "/api/docs",
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerSpec, {
+        customCss: ".swagger-ui .topbar { display: none }",
+        customSiteTitle: "Real Estate API Docs",
+        swaggerOptions: {
+          persistAuthorization: true,
+          displayRequestDuration: true,
+          filter: true,
+          tryItOutEnabled: true,
+          defaultModelsExpandDepth: 2,
+          defaultModelExpandDepth: 2,
+        },
+      }),
+    );
+
+    this.express.get("/api/docs.json", (req, res) => {
+      res.setHeader("Content-Type", "application/json");
+      res.send(swaggerSpec);
+    });
+
     // const protectBullBoard = (): void => {};
 
-    this.express.use("/admin/queues", bullboardRouter);
+    this.express.use("/api/v1/auth", authRoutes);
+    this.express.use("/api/v1/users", userRoutes);
+    this.express.use("/api/v1/properties", propertyRoutes);
+    this.express.use("/api/v1/bookings", bookingRoutes);
+    this.express.use("/api/v1/reviews", reviewRoutes);
+    this.express.use("/api/v1/saved", savedPropertyRoutes);
+    this.express.use("/api/v1/payments", paymentRoutes);
+    this.express.use("/api/v1/subscriptions", subscriptionRoute);
+    this.express.use("/api/v1/admin", adminRoutes);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);

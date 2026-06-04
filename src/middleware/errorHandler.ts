@@ -4,6 +4,7 @@ import { logger } from "../config/logger";
 import { Prisma } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import { ResponseHelper } from "../shared/utils/apiResponse";
+import { env } from "../config/env";
 
 export const errorHandlerMiddleware = (
   err: Error,
@@ -15,9 +16,15 @@ export const errorHandlerMiddleware = (
   let statusCode: number = 500;
   let code = "INTERNAL SERVER ERROR";
   let isOperational: boolean = true;
-  let details: any;
+  let details: unknown;
 
-  if (err instanceof AppError) {
+  if (err instanceof ValidationError) {
+    message = err.message;
+    code = err.code;
+    statusCode = err.statusCode;
+    details = err.details;
+    logger.warn({ err, path: req.path });
+  } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     code = err.code;
     message = err.message;
@@ -27,12 +34,6 @@ export const errorHandlerMiddleware = (
     } else {
       logger.fatal({ err, path: req.path });
     }
-  } else if (err instanceof ValidationError) {
-    message = err.message;
-    code = err.code;
-    statusCode = err.statusCode;
-    details = err.details;
-    logger.warn({ err, path: req.path });
   } else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {
       message = "Resource conflict";
@@ -61,6 +62,13 @@ export const errorHandlerMiddleware = (
   }
 
   if (!res.headersSent) {
-    ResponseHelper.error(res, message, statusCode, code, details);
+    return res.status(statusCode).json({
+      message,
+      error: {
+        code,
+        ...(details ? { details } : {}),
+        ...(env.NODE_ENV === "development" && { stack: err.stack }),
+      },
+    });
   }
 };

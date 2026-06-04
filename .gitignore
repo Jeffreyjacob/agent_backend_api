@@ -10,6 +10,7 @@ node_modules/
 # build output
 dist/
 build/
+src/shared/utils/card.html
 
 # logs
 logs
@@ -34,4 +35,4 @@ coverage/
 
 # optional
 tmp/
-temp/
+temp/logs

@@ -6,7 +6,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
+
+
 
 datasource db {
   provider = "postgresql"
@@ -50,7 +53,6 @@ enum BookingStatus {
 }
 
 enum SubscriptionPlan {
-  FREE_TRIAL
   BASIC
   PREMIUM
 }
@@ -59,11 +61,12 @@ enum SubscriptionDuration {
   MONTHLY
   QUARTERLY
   HALF_YEAR
-  YEARLY
 }
 
 enum SubscriptionStatus {
   ACTIVE 
+  INCOMPLETE
+  TRIAL
   EXPIRED
   CANCELLED
   PAST_DUE
@@ -82,6 +85,7 @@ enum PaymentType {
 }
 
 enum PaymentStatus {
+  SUCCEEDED
   PENDING
   FAILED
   REFUNDED
@@ -125,7 +129,7 @@ model User {
 
   // index
   @@index([resetToken,resetTokenExpiresAt])
-  @@index([emailOtp,emailVerifed,emailOtpExpiresAt])
+  @@index([email,emailOtp,emailVerifed,emailOtpExpiresAt])
   @@index([email,isActive])
 }
 
@@ -189,11 +193,12 @@ model PropertyImage {
   propertyId  String
   property  Property  @relation(fields: [propertyId],references: [id],onDelete:Cascade)
   url  String
-  publicId   String
+  publicId   String 
   isPrimary  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([propertyId])
+  @@unique([propertyId, publicId])
 }
 
 model Booking {
@@ -210,7 +215,6 @@ model Booking {
   notes    String?
   cancelledBy   String?
   cancelReason  String?
-  reminderJobId  String?
   autoConfirmJobId String?
 
   createdAt DateTime  @default(now())
@@ -218,6 +222,7 @@ model Booking {
 
   //Relation
   review Review?
+  reminderJobs BookingReminderJob[]
 
 
   @@index([buyerId])
@@ -226,6 +231,13 @@ model Booking {
   @@index([buyerId,status])
   @@index([agentId,status])
   @@index([startTime])
+}
+
+model BookingReminderJob {
+  id String @id @default(uuid())
+  reminderJobId String
+  bookingId String
+  booking  Booking   @relation(fields: [bookingId],references: [id],onDelete: Cascade)
 }
 
 model Subscription {
@@ -240,6 +252,8 @@ model Subscription {
   price   Float
   currentPeriodStart  DateTime
   currentPeriodEnd    DateTime
+  cancelRequested Boolean @default(false)
+  subscriptionCycleId String?
   cancelledAt   DateTime?
   gracePeriodEnd   DateTime?
   reminderJobId    String? 
@@ -325,6 +339,8 @@ model Payment {
   currency  String   @default("usd")
   stripePaymentId  String?  @unique
   description  String?
+  createdAt DateTime @default(now())
+
 
   @@index([userId])
   @@index([stripePaymentId])
