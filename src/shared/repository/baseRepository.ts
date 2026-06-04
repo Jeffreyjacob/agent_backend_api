@@ -31,7 +31,7 @@ type PrismaDelegate<T> = {
   }): Promise<Prisma.BatchPayload>;
   upsert(args: {
     where: Prisma.Args<T, "upsert">["where"];
-    create: Prisma.Args<T, "upsert">["data"];
+    create: Prisma.Args<T, "upsert">["create"];
     update: Prisma.Args<T, "upsert">["update"];
   }): Promise<Prisma.Result<T, typeof args, "upsert">>;
 };
@@ -155,7 +155,7 @@ export abstract class BaseRepository<TDelegate, TResult> {
 
   async upsert(args: {
     where: Prisma.Args<TDelegate, "upsert">["where"];
-    create: Prisma.Args<TDelegate, "upsert">["data"];
+    create: Prisma.Args<TDelegate, "upsert">["create"];
     update: Prisma.Args<TDelegate, "upsert">["update"];
   }): Promise<Prisma.Result<TDelegate, typeof args, "upsert">> {
     return await this.model.upsert({

@@ -35,4 +35,4 @@ coverage/
 
 # optional
 tmp/
-temp/
+temp/logs

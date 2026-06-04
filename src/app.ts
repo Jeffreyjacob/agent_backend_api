@@ -12,7 +12,6 @@ import { NotFoundMiddleware } from "./middleware/notFoundMiddleware";
 import { errorHandlerMiddleware } from "./middleware/errorHandler";
 import { HealthCheck } from "./shared/healthCheck/healthCheck";
 import { asyncHandler } from "./shared/utils/asyncHandler";
-import { bullboardRouter } from "./jobs/bullBoard";
 import authRoutes from "./module/authentication/auth.routes";
 import userRoutes from "./module/users/user.route";
 import propertyRoutes from "./module/property/property.route";
@@ -21,6 +20,7 @@ import reviewRoutes from "./module/reviews/review.routes";
 import savedPropertyRoutes from "./module/savedProperty/savedproperty.routes";
 import paymentRoutes from "./module/payments/payment.routes";
 import subscriptionRoute from "./module/subscription/subscription.routes";
+import adminRoutes from "./module/admin/admin.routes";
 
 class App {
   public readonly express: Application;
@@ -90,7 +90,6 @@ class App {
 
     // const protectBullBoard = (): void => {};
 
-    this.express.use("/admin/queues", bullboardRouter);
     this.express.use("/api/v1/auth", authRoutes);
     this.express.use("/api/v1/user", userRoutes);
     this.express.use("/api/v1/property", propertyRoutes);
@@ -99,6 +98,7 @@ class App {
     this.express.use("/api/v1/savedProperty", savedPropertyRoutes);
     this.express.use("/api/v1/payment", paymentRoutes);
     this.express.use("/api/v1/subscription", subscriptionRoute);
+    this.express.use("/api/v1/admin", adminRoutes);
   }
   setErrorMiddleware() {
     this.express.use(NotFoundMiddleware);
