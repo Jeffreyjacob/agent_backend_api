@@ -1,26 +1,38 @@
+// src/seed.ts
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { env } from "./config/env";
-import { userRepo } from "./container";
-import { logger } from "./config/logger";
+
+const prisma = new PrismaClient();
 
 async function main() {
-  const hashPassword = await bcrypt.hash(env.ADMIN_PASSWORD, env.BCRYPT_ROUNDS);
+  console.log("Running seed...");
 
-  await userRepo.upsert({
-    where: { email: env.ADMIN_EMAIL },
+  // upsert = update if exists, create if not
+  // this makes the seed safe to run multiple times
+  const admin = await prisma.user.upsert({
+    where: {
+      email: env.ADMIN_EMAIL,
+    },
     update: {},
+    // update is empty — if admin exists, don't change anything
     create: {
       email: env.ADMIN_EMAIL,
-      password: hashPassword,
-      firstName: "Super",
-      lastName: "Admin",
+      password: await bcrypt.hash(env.ADMIN_PASSWORD, env.BCRYPT_ROUNDS),
       role: "ADMIN",
-      emailVerifed: true,
-      isActive: true,
+      firstName: "Admin",
+      lastName: "User",
     },
   });
 
-  logger.info("admin user seeded");
+  console.log("Admin user ready:", admin.email);
 }
 
-main().catch(console.error);
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

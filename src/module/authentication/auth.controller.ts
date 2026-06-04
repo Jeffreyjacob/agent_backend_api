@@ -46,7 +46,7 @@ export class AuthController {
     ResponseHelper.success(
       res,
       { user: result.user, accessToken: result.accessToken },
-      201,
+      200,
       "user logged in",
     );
   }
