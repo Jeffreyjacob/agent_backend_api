@@ -601,7 +601,7 @@ export class SubscriptionService {
 
   async setDefaultPaymentMethod(
     userId: string,
-    data: IPaymentMethodPayload,
+    paymenMethodId: string,
   ): Promise<{ message: string }> {
     const user = await this.userRepo.findById(userId);
 
@@ -610,13 +610,13 @@ export class SubscriptionService {
     if (!user.stripeCustomerId)
       throw new NotFoundError("No stripe customer found");
 
-    const pm = await stripe.paymentMethods.retrieve(data.paymenMethodId);
+    const pm = await stripe.paymentMethods.retrieve(paymenMethodId);
 
     if (pm.customer !== user.stripeCustomerId)
       throw new BadRequestError("Card does not belong to customer");
 
     await stripe.customers.update(user.stripeCustomerId, {
-      invoice_settings: { default_payment_method: data.paymenMethodId },
+      invoice_settings: { default_payment_method: paymenMethodId },
     });
 
     return {
@@ -626,7 +626,7 @@ export class SubscriptionService {
 
   async deletePaymentMethod(
     userId: string,
-    data: IPaymentMethodPayload,
+    paymenMethodId: string,
   ): Promise<{ message: string }> {
     const user = await this.userRepo.findById(userId);
 
@@ -641,7 +641,7 @@ export class SubscriptionService {
     });
 
     const checkIfPaymentExist = existingPaymentMethods.data.find(
-      (pm) => pm.id === data.paymenMethodId,
+      (pm) => pm.id === paymenMethodId,
     );
 
     if (!checkIfPaymentExist)
@@ -656,10 +656,10 @@ export class SubscriptionService {
     const default_payment_method =
       customer.invoice_settings.default_payment_method;
 
-    if (data.paymenMethodId === default_payment_method)
+    if (paymenMethodId === default_payment_method)
       throw new BadRequestError("You can't delete your default payment method");
 
-    await stripe.paymentMethods.detach(data.paymenMethodId);
+    await stripe.paymentMethods.detach(paymenMethodId);
 
     return {
       message: "payment method has been deleted",

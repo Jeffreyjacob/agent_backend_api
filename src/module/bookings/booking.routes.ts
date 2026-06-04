@@ -91,31 +91,60 @@ router.post(
 
 /**
  * @swagger
- * /bookings/{id}/confirm:
- *   patch:
- *     summary: Confirm a booking (agent only)
+ * /bookings/buyer:
+ *   get:
+ *     summary: Get buyer's bookings
  *     tags: [Bookings]
- *     description: |
- *       Agent confirms a PENDING booking.
- *
- *       **On confirm:**
- *       - Status → CONFIRMED
- *       - 48-hour auto-cancel job removed
- *       - Confirmation email sent to buyer
- *       - Reminder emails scheduled 24 hours before viewing
+ *     description: Returns all bookings made by the authenticated buyer.
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
+ *       - in: query
+ *         name: status
  *         schema:
  *           type: string
+ *           enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW]
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         example: "2026-07-01"
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 15
  *     responses:
  *       200:
- *         description: Booking confirmed
- *       400:
- *         description: Booking already confirmed or cancelled
- *       404:
- *         $ref: '#/components/responses/NotFound'
+ *         description: Buyer bookings retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Booking'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ *                   example: buyer booking fetched
  */
 
 router.get(
@@ -125,6 +154,56 @@ router.get(
   Validate(getBookingSchema, "query"),
   asyncHandler(bookingController.getBuyerBookings.bind(bookingController)),
 );
+
+/**
+ * @swagger
+ * /bookings/agent:
+ *   get:
+ *     summary: Get agent's bookings
+ *     tags: [Bookings]
+ *     description: Returns all bookings for the authenticated agent's properties.
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED, NO_SHOW]
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 15
+ *     responses:
+ *       200:
+ *         description: Agent bookings retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Booking'
+ *                 meta:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *                   example: Agent booking fetched!
+ */
 
 router.get(
   "/agent",
@@ -176,12 +255,64 @@ router.patch(
   asyncHandler(bookingController.confirmBooking.bind(bookingController)),
 );
 
+/**
+ * @swagger
+ * /bookings/{id}/completed:
+ *   patch:
+ *     summary: Mark booking as completed (agent only)
+ *     tags: [Bookings]
+ *     description: |
+ *       Agent marks viewing as completed.
+ *       Only allowed after `startTime` has passed.
+ *       Booking must be CONFIRMED.
+ *       Buyer can leave a review after this.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Booking marked as completed
+ *       400:
+ *         description: Booking not confirmed or viewing hasn't started yet
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+
 router.patch(
   "/:id/completed",
   authMiddleware,
   requireRole(Role.AGENT),
   asyncHandler(bookingController.completeBooking.bind(bookingController)),
 );
+
+/**
+ * @swagger
+ * /bookings/{id}/noShow:
+ *   patch:
+ *     summary: Mark buyer as no-show (agent only)
+ *     tags: [Bookings]
+ *     description: |
+ *       Agent marks buyer as no-show.
+ *       Only allowed after `startTime` has passed.
+ *       Booking must be CONFIRMED.
+ *       Email sent to buyer.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Booking marked as no-show
+ *       400:
+ *         description: Booking not confirmed or viewing hasn't started yet
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 
 router.patch(
   "/:id/noShow",
@@ -271,7 +402,7 @@ router.patch(
  */
 
 router.patch(
-  "/:id/reschedule",
+  "/:id",
   authMiddleware,
   requireRole(Role.BUYER),
   Validate(rescheduleBookingSchema, "body"),

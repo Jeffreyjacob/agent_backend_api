@@ -15,6 +15,82 @@ const router = Router();
  *   description: Stripe webhook and payment history
  */
 
+/**
+ * @swagger
+ * /payments:
+ *   get:
+ *     summary: Get payment history
+ *     tags: [Payments]
+ *     description: |
+ *       Agents and buyers can view their own payment history.
+ *       Filters by status, type, and date range.
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [PENDING, SUCCEEDED, FAILED, REFUNDED]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 15
+ *     responses:
+ *       200:
+ *         description: Payment history retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                         enum: [SUBSCRIPTION, FEATURED_LISTING]
+ *                       status:
+ *                         type: string
+ *                         enum: [PENDING, SUCCEEDED, FAILED, REFUNDED]
+ *                       amount:
+ *                         type: number
+ *                         example: 29.00
+ *                       currency:
+ *                         type: string
+ *                         example: usd
+ *                       description:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ *                   example: payments fetched
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+
 router.get(
   "/",
   authMiddleware,

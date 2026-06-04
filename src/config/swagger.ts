@@ -6,10 +6,9 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "RealNest API",
+      title: "Real Estate API",
       version: "1.0.0",
       description: `
-# RealNest API
 
 Production-grade Real Estate REST API.
 
@@ -312,6 +311,33 @@ stripe trigger customer.subscription.deleted
               nullable: true,
             },
             createdAt: { type: "string", format: "date-time" },
+          },
+        },
+
+        PaymentMethod: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              example: "pm_1ABC123def456",
+              description: "Stripe payment method ID",
+            },
+            brand: {
+              type: "string",
+              example: "visa",
+              description: "Card brand — visa, mastercard, amex",
+            },
+            last4: {
+              type: "string",
+              example: "4242",
+              description: "Last 4 digits of card",
+            },
+            exp_month: { type: "integer", example: 12 },
+            exp_year: { type: "integer", example: 2027 },
+            isDefault: {
+              type: "boolean",
+              description: "Whether this is the default payment method",
+            },
           },
         },
       },

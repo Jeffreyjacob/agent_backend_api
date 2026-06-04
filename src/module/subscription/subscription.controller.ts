@@ -101,12 +101,12 @@ export class SubscriptionController {
   async setDefaultPaymentMethod(req: Request, res: Response): Promise<void> {
     const result = await this.service.setDefaultPaymentMethod(
       req.user?.userId as string,
-      req.body as any,
+      req.params.id as string,
     );
     req.log?.info(
       {
         userId: req.user?.userId,
-        paymentMethodId: req.body.paymenMethodId,
+        paymentMethodId: req.params.id,
       },
       "payment method has been set to default",
     );
@@ -116,12 +116,12 @@ export class SubscriptionController {
   async deletePaymentMethod(req: Request, res: Response): Promise<void> {
     const result = await this.service.deletePaymentMethod(
       req.user?.userId as string,
-      req.body as any,
+      req.params.id as string,
     );
     req.log?.info(
       {
         userId: req.user?.userId,
-        paymentMethodId: req.body.paymenMethodId,
+        paymentMethodId: req.params.id,
       },
       "payment method has been deleted",
     );

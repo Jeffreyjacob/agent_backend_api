@@ -115,11 +115,11 @@ class App {
     // const protectBullBoard = (): void => {};
 
     this.express.use("/api/v1/auth", authRoutes);
-    this.express.use("/api/v1/user", userRoutes);
+    this.express.use("/api/v1/users", userRoutes);
     this.express.use("/api/v1/properties", propertyRoutes);
     this.express.use("/api/v1/bookings", bookingRoutes);
-    this.express.use("/api/v1/review", reviewRoutes);
-    this.express.use("/api/v1/savedProperty", savedPropertyRoutes);
+    this.express.use("/api/v1/reviews", reviewRoutes);
+    this.express.use("/api/v1/saved", savedPropertyRoutes);
     this.express.use("/api/v1/payments", paymentRoutes);
     this.express.use("/api/v1/subscriptions", subscriptionRoute);
     this.express.use("/api/v1/admin", adminRoutes);

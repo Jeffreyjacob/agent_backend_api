@@ -233,8 +233,77 @@ router.get(
   asyncHandler(propertiesController.getProperties.bind(propertiesController)),
 );
 
+/**
+ * @swagger
+ * /properties/featured:
+ *   get:
+ *     summary: Get all active featured listings
+ *     tags: [Properties]
+ *     security: []
+ *     description: Returns all currently featured properties. Results cached.
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 15
+ *     responses:
+ *       200:
+ *         description: Featured listings retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       propertyId:
+ *                         type: string
+ *                       agentId:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                         enum: [ACTIVE, EXPIRED, CANCELLED]
+ *                       amountPaid:
+ *                         type: number
+ *                         example: 19
+ *                       startDate:
+ *                         type: string
+ *                         format: date-time
+ *                       expiresAt:
+ *                         type: string
+ *                         format: date-time
+ *                       property:
+ *                         $ref: '#/components/schemas/Property'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ *                   example: featured listings fetched
+ */
+
 router.get(
-  "/featuredListing",
+  "/featured",
   authMiddleware,
   requireRole(Role.AGENT),
   Validate(getFeaturedListingSchema, "query"),
@@ -419,6 +488,33 @@ router.patch(
   Validate(updatePropertySchema, "body"),
   asyncHandler(propertiesController.updateProperty.bind(propertiesController)),
 );
+
+/**
+ * @swagger
+ * /properties/{id}:
+ *   delete:
+ *     summary: Delete a property listing
+ *     tags: [Properties]
+ *     description: |
+ *       Agent (own properties) or Admin (any property).
+ *       Property must be INACTIVE before deletion.
+ *       All Cloudinary images are deleted automatically.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Property deleted
+ *       400:
+ *         description: Cannot delete an ACTIVE listing — deactivate first
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
 
 router.delete(
   "/:id",

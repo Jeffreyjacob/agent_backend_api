@@ -158,8 +158,61 @@ router.post(
   ),
 );
 
+/**
+ * @swagger
+ * /subscriptions/resubscribe:
+ *   post:
+ *     summary: Resubscribe after cancellation (no trial)
+ *     tags: [Subscriptions]
+ *     description: |
+ *       For agents whose subscription was previously cancelled.
+ *       **No free trial** — charged immediately.
+ *
+ *       Requires a saved payment method from a previous subscription.
+ *       If no payment method exists, call POST /payment-methods/initiate first.
+ *
+ *       **On resubscription:**
+ *       - Subscription status → ACTIVE immediately
+ *       - All INACTIVE listings reactivated
+ *       - Welcome back email sent
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [plan, duration]
+ *             properties:
+ *               plan:
+ *                 type: string
+ *                 enum: [BASIC, PREMIUM]
+ *               duration:
+ *                 type: string
+ *                 enum: [MONTHLY, QUARTERLY, HALF_YEAR]
+ *     responses:
+ *       200:
+ *         description: Subscription reactivated — charged immediately
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Subscription'
+ *                 message:
+ *                   type: string
+ *                   example: Subscription reactivated successfully
+ *       400:
+ *         description: No saved payment method found
+ *       409:
+ *         description: Already have an active subscription
+ */
+
 router.post(
-  "/reSubscribe",
+  "/resubscribe",
   authMiddleware,
   requireRole(Role.AGENT),
   Validate(restartSubscriptionSchema, "body"),
@@ -252,6 +305,32 @@ router.post(
   ),
 );
 
+/**
+ * @swagger
+ * /subscriptions/resume:
+ *   post:
+ *     summary: Resume a subscription scheduled for cancellation
+ *     tags: [Subscriptions]
+ *     description: |
+ *       If you cancelled with `cancelImmediately: false`, the subscription
+ *       is still active until period end but marked for cancellation.
+ *
+ *       This endpoint removes the cancellation — subscription continues normally.
+ *     responses:
+ *       200:
+ *         description: Subscription resumed
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: ""
+ *               message: Subscription resumed successfully
+ *       400:
+ *         description: Subscription is not scheduled for cancellation
+ *       404:
+ *         description: No subscription found
+ */
+
 router.post(
   "/resume",
   authMiddleware,
@@ -310,8 +389,62 @@ router.patch(
   asyncHandler(subscriptionController.changePlan.bind(subscriptionController)),
 );
 
+/**
+ * @swagger
+ * /subscriptions/payment-methods/initiate:
+ *   post:
+ *     summary: ⚠️ Create SetupIntent to add a new card
+ *     tags: [Payment Methods]
+ *     description: |
+ *       ⚠️ **Cannot be tested in Swagger UI** — requires Stripe.js on frontend.
+ *
+ *       Step 1 of adding a new card. Returns a `clientSecret` for Stripe.js.
+ *
+ *       **Frontend flow:**
+ *       ```
+ *       Step 1: POST /payment-methods/initiate → get clientSecret
+ *       Step 2: stripe.confirmCardSetup(clientSecret, { payment_method: { card } })
+ *       Step 3: POST /payment-methods/confirm { paymentMethodId }
+ *       ```
+ *     responses:
+ *       200:
+ *         description: SetupIntent created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     clientSecret:
+ *                       type: string
+ *                       description: Pass to Stripe.js confirmCardSetup(). Never store.
+ *                       example: seti_1ABC_secret_xyz
+ *                     customerId:
+ *                       type: string
+ *                       example: cus_1ABC123
+ *                     requiresPaymentMethod:
+ *                       type: boolean
+ *                       description: True if no payment method exists yet
+ *                     paymentMethod:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Existing default payment method ID if present
+ *                 message:
+ *                   type: string
+ *                   example: Setup intent created
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+
 router.post(
-  "/paymentMethod/initiate",
+  "/payment-methods/initiate",
   authMiddleware,
   requireRole(Role.AGENT),
   asyncHandler(
@@ -319,8 +452,50 @@ router.post(
   ),
 );
 
+/**
+ * @swagger
+ * /subscriptions/payment-methods/confirm:
+ *   post:
+ *     summary: ⚠️ Confirm and save a new card
+ *     tags: [Payment Methods]
+ *     description: |
+ *       ⚠️ **Call after Stripe.js confirmCardSetup() succeeds.**
+ *
+ *       Attaches the payment method to the Stripe Customer.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [paymentMethodId]
+ *             properties:
+ *               paymentMethodId:
+ *                 type: string
+ *                 description: Payment method ID from Stripe.js after card confirmed
+ *                 example: pm_1ABC123def456
+ *     responses:
+ *       200:
+ *         description: Card saved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/PaymentMethod'
+ *                 message:
+ *                   type: string
+ *                   example: Payment method added successfully
+ *       400:
+ *         description: Invalid payment method ID
+ */
+
 router.post(
-  "/paymentMethod/confirm",
+  "/payment-methods/confirm",
   authMiddleware,
   requireRole(Role.AGENT),
   Validate(paymentMethodSchema, "body"),
@@ -329,28 +504,113 @@ router.post(
   ),
 );
 
+/**
+ * @swagger
+ * /subscriptions/payment-methods/{id}/default:
+ *   patch:
+ *     summary: Set a card as the default payment method
+ *     tags: [Payment Methods]
+ *     description: |
+ *       Sets the card as default for future subscription renewals.
+ *       Only one card can be default at a time.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Stripe payment method ID
+ *         example: pm_1ABC123def456
+ *     responses:
+ *       200:
+ *         description: Default payment method updated
+ *         content:
+ *           application/json:
+ *             example:
+ *               success: true
+ *               data: ""
+ *               message: Default payment method updated
+ *       404:
+ *         description: Payment method not found
+ */
+
 router.patch(
-  "/paymentMethod/default",
+  "/payment-methods/:id/default",
   authMiddleware,
   requireRole(Role.AGENT),
-  Validate(paymentMethodSchema, "body"),
   asyncHandler(
     subscriptionController.setDefaultPaymentMethod.bind(subscriptionController),
   ),
 );
 
+/**
+ * @swagger
+ * /subscriptions/payment-methods/{id}:
+ *   delete:
+ *     summary: Delete a saved card
+ *     tags: [Payment Methods]
+ *     description: |
+ *       **Business rules:**
+ *       - Cannot delete the default payment method if subscription is active
+ *         (set another card as default first)
+ *       - Cannot delete your only card if subscription is active
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Stripe payment method ID
+ *         example: pm_1ABC123def456
+ *     responses:
+ *       204:
+ *         description: Card deleted
+ *       400:
+ *         description: |
+ *           Cannot delete default card with active subscription,
+ *           or cannot delete only card with active subscription
+ *       404:
+ *         description: Payment method not found
+ */
+
 router.delete(
-  "/paymentMethod",
+  "/payment-methods/:id",
   authMiddleware,
   requireRole(Role.AGENT),
-  Validate(paymentMethodSchema, "body"),
   asyncHandler(
     subscriptionController.deletePaymentMethod.bind(subscriptionController),
   ),
 );
 
+/**
+ * @swagger
+ *  /subscriptions/payment-methods:
+ *   get:
+ *     summary: List all saved cards
+ *     tags: [Payment Methods]
+ *     description: Returns all saved payment methods for the agent.
+ *     responses:
+ *       200:
+ *         description: Payment methods retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PaymentMethod'
+ *                 message:
+ *                   type: string
+ *                   example: Payment methods fetched
+ */
+
 router.get(
-  "/paymentMethod",
+  "/payment-methods",
   authMiddleware,
   requireRole(Role.AGENT),
   asyncHandler(
