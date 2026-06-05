@@ -54,7 +54,7 @@ stripe trigger customer.subscription.deleted
       {
         url:
           env.NODE_ENV === "production"
-            ? "https://agent-backend-api-whvc.onrender.com/api/v1"
+            ? "https://agent-backend-api-whvc.onrender.com/api/v1/"
             : `http://localhost:${env.PORT}/api/v1`,
         description:
           env.NODE_ENV === "production" ? "Production" : "Development",
