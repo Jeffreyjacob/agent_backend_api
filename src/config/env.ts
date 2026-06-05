@@ -7,6 +7,7 @@ dotenv.config({
 
 interface EnvConfig {
   NODE_ENV: "development" | "production" | "testing";
+  RESEND_API_KEY: string;
   PORT: number;
   DATABASE_URL: string;
   REDIS_URL: string;
@@ -46,9 +47,6 @@ const validatatEnv = (): EnvConfig => {
     "DATABASE_URL",
     "REDIS_URL",
     "JWT_ACCESS_SECRET",
-    "SMTP_USER",
-    "SMTP_PASSWORD",
-    "SMTP_HOST",
     "EMAIL_FROM",
     "ALLOWED_ORIGIN",
     "REFRESHTOKEN_NAME",
@@ -64,6 +62,7 @@ const validatatEnv = (): EnvConfig => {
     "STRIPE_PREMIUM_MONTHLY_PRICE_ID",
     "STRIPE_PREMIUM_QUARTERLY_PRICE_ID",
     "STRIPE_PREMIUM_HALFYEAR_PRICE_ID",
+    "RESEND_API_KEY",
   ];
 
   const missing_env = REQUIRED_ENV.filter((env) => !process.env[env]);
@@ -113,6 +112,7 @@ const validatatEnv = (): EnvConfig => {
     ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
     LOKI_HOST: process.env.LOKI_HOST as string,
+    RESEND_API_KEY: process.env.RESEND_API_KEY as string,
   };
 };
 
