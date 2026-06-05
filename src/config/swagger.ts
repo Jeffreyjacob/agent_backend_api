@@ -433,10 +433,7 @@ stripe trigger customer.subscription.deleted
     },
     security: [{ BearerAuth: [] }],
   },
-  apis:
-    env.NODE_ENV === "production"
-      ? ["./dist/module/**/*.routes.js"]
-      : ["./src/module/**/*.routes.ts"],
+  apis: ["./src/**/*.ts", "./dist/**/*.js"],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
