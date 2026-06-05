@@ -31,8 +31,14 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/prisma ./prisma
 
+# Copy both entrypoint scripts
+COPY scripts/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY scripts/docker-entrypoint-worker.sh ./docker-entrypoint-worker.sh
+RUN chmod +x ./docker-entrypoint.sh ./docker-entrypoint-worker.sh
+
 USER node
 
 EXPOSE 3000
 
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "dist/server.js"]
