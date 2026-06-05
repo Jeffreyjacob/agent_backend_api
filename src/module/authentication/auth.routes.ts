@@ -27,58 +27,49 @@ const router = Router();
 /**
  * @swagger
  * /auth/register/buyer:
- * post:
- *   summary: Register a new buyer account
- *   tags: [Authentication]
- *   security: []
- *   requestBody:
+ *   post:
+ *     summary: Register a new buyer account
+ *     tags: [Authentication]
+ *     security: []
+ *     description: |
+ *       Creates a buyer account. Email verification required before login.
+ *     requestBody:
  *       required: true
  *       content:
- *          application/json:
- *            schema:
- *              type:object
- *              required:[firstName,lastName,email,password]
- *              properties:
- *                firstName:
- *                   type: string
- *                   example: John
- *                lastName:
- *                   type:string
- *                   example: Doe
- *                email:
- *                   type: string
- *                   format: email
- *                   example: john@example.com
- *                password:
- *                   type: string
- *                   example: Password123!
- *                   description: Min 8 chars, uppercase , number, special character
- *     Response:
- *        201:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [firstName, lastName, email, password]
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *               password:
+ *                 type: string
+ *                 example: Password123!
+ *                 description: Min 8 chars, uppercase, number, special character
+ *     responses:
+ *       201:
  *         description: Account created — check email for OTP
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: string
- *                   example: ""
- *                 message:
- *                   type: string
- *                   example: User account has been created successfully
+ *             example:
+ *               success: true
+ *               data: ""
+ *               message: User account has been created successfully
  *       409:
  *         $ref: '#/components/responses/Conflict'
  *       422:
  *         $ref: '#/components/responses/ValidationError'
  *       429:
- *          $ref: '#/components/responses/TooManyRequests'
- *
- *
- *
+ *         $ref: '#/components/responses/TooManyRequests'
  */
 
 router.post(
