@@ -4,6 +4,7 @@ import { logger } from "./logger";
 
 export const redis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: 3,
+  tls: {},
   retryStrategy(times) {
     if (times > 10) return null;
     return Math.min(times * 500 * Math.pow(2, times), 30000);
