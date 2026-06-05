@@ -434,10 +434,7 @@ stripe trigger customer.subscription.deleted
     },
     security: [{ BearerAuth: [] }],
   },
-  apis: [
-    path.join(__dirname, "../module/**/*.routes.js"),
-    path.join(__dirname, "../module/**/*.routes.ts"),
-  ],
+  apis: [path.join(__dirname, "../module/**/*.routes.js")],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
