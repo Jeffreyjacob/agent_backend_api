@@ -2,16 +2,14 @@
 set -e
 
 echo "Running Prisma migrations..."
-
 if [ "$NODE_ENV" = "production" ]; then
   npx prisma migrate deploy
 else
-  npx prisma migrate dev
+  npx prisma migrate dev --skip-seed
 fi
 
 echo "Running seed..."
-npx prisma db seed
-# safe to run every time because seed uses upsert
+node dist/seed.js
 
 echo "Starting..."
 exec "$@"
