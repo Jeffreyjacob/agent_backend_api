@@ -51,6 +51,7 @@ async function startServer(): Promise<void> {
           await prisma.$disconnect();
           await disconnectRedis();
           clearTimeout(forceExitTimer);
+          logger.info("server shutdown gracefully");
           process.exit(0);
         } catch (cleanupErr: any) {
           logger.error(
@@ -60,18 +61,17 @@ async function startServer(): Promise<void> {
           process.exit(1);
         }
       });
-
-      process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-      process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-      process.on("uncaughtException", (err) => {
-        logger.fatal({ err, pid: process.pid }, "uncaughtException error");
-        gracefulShutdown("uncaughtException");
-      });
-      process.on("unhandledRejection", (reason) => {
-        logger.fatal({ reason, pid: process.pid }, "unhandledRejection Error");
-        gracefulShutdown("unhandledRejection");
-      });
     };
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+    process.on("uncaughtException", (err) => {
+      logger.fatal({ err, pid: process.pid }, "uncaughtException error");
+      gracefulShutdown("uncaughtException");
+    });
+    process.on("unhandledRejection", (reason) => {
+      logger.fatal({ reason, pid: process.pid }, "unhandledRejection Error");
+      gracefulShutdown("unhandledRejection");
+    });
   } catch (error: any) {
     logger.fatal({ err: error }, "Unable to start server");
     process.exit(1);
