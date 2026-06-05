@@ -1,5 +1,6 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import { env } from "./env";
+import path from "path";
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -433,7 +434,7 @@ stripe trigger customer.subscription.deleted
     },
     security: [{ BearerAuth: [] }],
   },
-  apis: ["./src/**/*.ts", "./dist/**/*.js"],
+  apis: [path.join(__dirname, "../module/**/*.routes.js")],
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
