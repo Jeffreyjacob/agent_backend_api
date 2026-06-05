@@ -1,6 +1,6 @@
 import { prisma } from "./config/database";
 import { logger } from "./config/logger";
-import { disconnectRedis } from "./config/redis";
+import { disconnectRedis, redis } from "./config/redis";
 import { createCancelBookingWorker } from "./jobs/workers/cancelBooking";
 import { createEmailWorker } from "./jobs/workers/email";
 import { createSubscriptionWorker } from "./jobs/workers/subscription";
@@ -9,13 +9,14 @@ import { BookingRepository } from "./module/bookings/booking.repository";
 import { PropertyImageRepository } from "./module/property/propertyImage.repository";
 import { UserRepositrory } from "./module/users/user.repository";
 
-const startWorker = async () => {
+export const startWorker = async () => {
   try {
     logger.info("starting worker...");
-    await prisma.$connect();
+
     const propertImageRepo = new PropertyImageRepository();
     const bookingRepo = new BookingRepository();
     const userRepo = new UserRepositrory();
+
     const emailWorker = createEmailWorker();
     const uploadImageWorker = createUploadImageWorker(propertImageRepo);
     const cancelBookingWorker = createCancelBookingWorker(
@@ -24,43 +25,51 @@ const startWorker = async () => {
     );
     const subscriptionWorker = createSubscriptionWorker();
 
-    const gracefulShutdown = async (signal: string) => {
-      logger.info({ signal }, "start graceful shut down ");
-      const forceExitTimer = setTimeout(() => {
-        logger.info("shutting down - force exit");
-        process.exit(1);
-      }, 10_000);
-      forceExitTimer.unref();
-      try {
-        await prisma.$disconnect();
-        await disconnectRedis();
-        clearTimeout(forceExitTimer);
+    logger.info("Workers started successfully");
+
+    // Return shutdown function
+    return {
+      shutdown: async () => {
         await emailWorker.close();
         await uploadImageWorker.close();
         await cancelBookingWorker.close();
         await subscriptionWorker.close();
-        logger.info("shutting down gracefully");
-        process.exit(0);
-      } catch (error: any) {
-        logger.fatal({ err: error }, "unable to shutdown gracefull");
-        process.exit(1);
-      }
+        logger.info("Workers shut down");
+      },
     };
-
-    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-    process.on("uncaughtException", (err) => {
-      logger.fatal({ err, pid: process.pid }, "uncaughtException error");
-      gracefulShutdown("uncaughtException");
-    });
-    process.on("unhandledRejection", (reason) => {
-      logger.fatal({ reason, pid: process.pid }, "unhandledRejection Error");
-      gracefulShutdown("unhandledRejection");
-    });
   } catch (error: any) {
-    logger.fatal({ err: error }, "unable to start server");
-    process.exit(1);
+    logger.fatal({ err: error }, "unable to start workers");
+    throw error;
   }
 };
 
-startWorker();
+// Standalone mode for local development
+if (require.main === module) {
+  (async () => {
+    await prisma.$connect();
+    await redis.ping();
+    const instance = await startWorker();
+
+    const shutdown = async (signal: string) => {
+      logger.info({ signal }, "shutting down worker");
+      await instance.shutdown();
+      await prisma.$disconnect();
+      await disconnectRedis();
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("uncaughtException", (err) => {
+      logger.fatal({ err }, "uncaughtException");
+      shutdown("uncaughtException");
+    });
+    process.on("unhandledRejection", (reason) => {
+      logger.fatal({ reason }, "unhandledRejection");
+      shutdown("unhandledRejection");
+    });
+  })().catch((err) => {
+    logger.error({ err }, "Failed to start worker standalone");
+    process.exit(1);
+  });
+}
