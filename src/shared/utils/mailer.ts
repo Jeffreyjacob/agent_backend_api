@@ -1,15 +1,8 @@
-import { createTransport } from "nodemailer";
 import { env } from "../../config/env";
 import { logger } from "../../config/logger";
+import { Resend } from "resend";
 
-export const transporter = createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASSWORD,
-  },
-});
+const resend = new Resend(env.RESEND_API_KEY);
 
 export const sendMails = async ({
   to,
@@ -23,7 +16,8 @@ export const sendMails = async ({
   html?: any;
 }) => {
   try {
-    await transporter.sendMail({
+    await resend.emails.send({
+      from: env.EMAIL_FROM,
       to,
       subject,
       ...(message && { text: message }),
