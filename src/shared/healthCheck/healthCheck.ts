@@ -11,12 +11,12 @@ interface DependencyHealth {
 }
 
 interface HealthResponse {
-  status: "health" | "unhealthy";
+  status: "healthy" | "unhealthy";
   timestamp: string;
   version: string;
   environment: string;
   uptime: number;
-  dependancies: {
+  dependencies: {
     database: DependencyHealth;
     redis: DependencyHealth;
     queue: DependencyHealth & { counts?: Record<string, any>[] };
@@ -69,7 +69,11 @@ export class HealthCheck {
         counts: queues,
       };
     } catch (error: any) {
-      return { status: "unhealthy", latency: Date.now(), error: error.message };
+      return {
+        status: "unhealthy",
+        latency: Date.now() - start,
+        error: error.message,
+      };
     }
   }
 
@@ -86,12 +90,12 @@ export class HealthCheck {
       queue.status === "healthy";
 
     return {
-      status: isHealthy ? "health" : "unhealthy",
+      status: isHealthy ? "healthy" : "unhealthy",
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version ?? "1.0",
       environment: env.NODE_ENV,
       uptime: Math.floor(process.uptime()),
-      dependancies: { database, redis, queue },
+      dependencies: { database, redis, queue },
     };
   }
 }
