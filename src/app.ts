@@ -85,7 +85,7 @@ class App {
       "/health",
       asyncHandler(async (_req, res) => {
         const health = await healthCheck.getHealth();
-        const statusCode = health.status === "health" ? 200 : 503;
+        const statusCode = health.status === "healthy" ? 200 : 503;
         res.status(statusCode).json(health);
       }),
     );
